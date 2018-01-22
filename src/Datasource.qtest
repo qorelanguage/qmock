@@ -1,0 +1,79 @@
+#!/usr/bin/env qore
+# -*- mode: qore; indent-tabs-mode: nil -*-
+# author: Qore Technologies
+
+%new-style
+%require-types
+%strict-args
+%enable-all-warnings
+%no-child-restrictions
+%require-our
+
+%requires QUnit
+
+%include "./Datasource.ql"
+
+%exec-class DatasourceTest
+
+
+sub foooo(Qore::SQL::AbstractDatasource ds) {
+    ds.selectRow("ahoj");
+    ds.selectRow("ahoj 2");
+}
+
+class DatasourceTest inherits QUnit::Test {
+
+    constructor() : QUnit::Test("DatasourceTest", "1.0") {
+
+        addTestCase("testMockWithCode", \testMockWithCode());
+
+        set_return_value(main());
+    }
+
+    testMockWithCode() {
+        # real production database
+        auto prodDB = new DatasourceMock();
+        prodDB._mock_settings(QMock::VAGUE);
+
+        # mock database
+        auto ds = new DatasourceMock();
+        ds._mock_settings(QMock::STRICT);
+
+        # mock method
+        ds._mock("selectRow", auto sub(*list argv) {
+            string sql = argv[0];
+            # mock returned data for queries
+            if (sql =~ /^ahoj$/) {
+                return {"a": 2};
+            }
+            if (sql =~ /^ahoj [0-9]$/) {
+                return { "a": "cislo" };
+            }
+
+            # if query doesn't match any regexp, call real database
+            return prodDB.selectRow(sql);
+        });
+
+        # mock all other methods
+        ds._mock("*", auto sub(*list argv) {});
+
+        # perform the testing
+        {
+            on_success ds.commit();
+            on_error ds.rollback();
+
+            foooo(ds);
+        }
+
+        # assert results
+        assertEq(2, ds._assert_called("selectRow"));
+        assertEq(1, ds._assert_called_with_args("selectRow", ("ahoj",)));
+        assertEq(1, ds._assert_called_with_args("selectRow", ("ahoj 2",)));
+        assertEq(("selectRow", "selectRow", "commit"), ds._mock_calls);
+
+        assertEq(0, elements prodDB._mock_calls);
+    }
+
+}
+
+
