@@ -14,12 +14,6 @@ class QMockProxy {
         *auto return_value;
 
         list<QMockProxy> others();
-
-        bool strict;
-    }
-
-    public constructor(bool strict) {
-        self.strict = strict;
     }
 
     public QMockProxy argEq(int arg_no, auto expected) {
@@ -41,7 +35,7 @@ class QMockProxy {
         push self.others, obj;
     }
 
-    public auto eval(string method_name, *list argv) {
+    public auto eval(*list argv) {
         bool match = True;
         foreach code rule in (self.rules) {
             if (!rule(argv)) {
@@ -55,10 +49,10 @@ class QMockProxy {
 
         foreach QMockProxy obj in (self.others) {
             try {
-                return obj.eval(method_name, argv);
+                return obj.eval(argv);
             } catch (ex) {
                 switch (ex) {
-                    case "QMOCK-EVAL-FAIL":
+                    case "QMOCK-PROXY-EVAL-FAIL":
                         # ignore, try next one
                     break;
                     default:
@@ -67,10 +61,7 @@ class QMockProxy {
             }
         }
 
-        if (self.strict === QMock::STRICT) {
-            throw "QMOCK-EVAL-FAIL", sprintf("Mocked '%s' method evaluation failed", method_name);
-        }
-        return NOTHING;
+        throw "QMOCK-PROXY-EVAL-FAIL";
     }
 }
 
@@ -109,7 +100,7 @@ class QMock {
     }
 
     public QMockProxy _mock(softlist<string> method_names) {
-        auto obj = new QMockProxy(self.strict);
+        auto obj = new QMockProxy();
         foreach string method_name in (method_names) {
             if (exists self.configuration{method_name}) {
                 auto mth = self.configuration{method_name};
@@ -162,9 +153,8 @@ class QMock {
             if (!exists self.configuration{"*"}) {
                 if (self.strict === QMock::STRICT) {
                     throw "INVALID-ARGUMENT", sprintf("Method %n is not mocked", method_name);
-                } else {
-                    return NOTHING;
                 }
+                return NOTHING;
             }
             method_name = "*";
         }
@@ -172,7 +162,19 @@ class QMock {
         # call mocked code
         auto mth = self.configuration{method_name};
         if (mth instanceof QMockProxy) {
-            return mth.eval(method_name, argv);
+            try {
+                return mth.eval(argv);
+            } catch (ex) {
+                switch (ex) {
+                    case "QMOCK-PROXY-EVAL-FAIL":
+                        if (self.strict === QMock::STRICT) {
+                            throw "INVALID-ARGUMENT", sprintf("Mocked method %n evaluation failed", method_name);
+                        }
+                        return NOTHING;
+                    default:
+                        rethrow;
+                }
+            }
         }
         return mth(argv);
     }
