@@ -26,6 +26,7 @@ class DatasourceTest inherits QUnit::Test {
     constructor() : QUnit::Test("DatasourceTest", "1.0") {
 
         addTestCase("testMockWithCode", \testMockWithCode());
+        addTestCase("testMockWithProxies", \testMockWithProxies());
 
         set_return_value(main());
     }
@@ -72,6 +73,31 @@ class DatasourceTest inherits QUnit::Test {
         assertEq(("selectRow", "selectRow", "commit"), ds._mock_calls);
 
         assertEq(0, elements prodDB._mock_calls);
+    }
+
+    testMockWithProxies() {
+        # mock database
+        auto ds = new DatasourceMock();
+        ds._mock_settings(QMock::STRICT);
+
+        # mock method
+        ds._mock("selectRow").argEq(0, "ahoj").return_value({"a": 2});
+        ds._mock("selectRow").argEq(0, "ahoj 2").return_value({"a": "cislo"});
+        ds._mock(("commit", "rollback"));
+
+        # perform the testing
+        {
+            on_success ds.commit();
+            on_error ds.rollback();
+
+            foooo(ds);
+        }
+
+        # assert results
+        assertEq(2, ds._assert_called("selectRow"));
+        assertEq(1, ds._assert_called_with_args("selectRow", ("ahoj",)));
+        assertEq(1, ds._assert_called_with_args("selectRow", ("ahoj 2",)));
+        assertEq(("selectRow", "selectRow", "commit"), ds._mock_calls);
     }
 
 }
