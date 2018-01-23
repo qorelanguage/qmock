@@ -8,6 +8,72 @@
 
 namespace QMock {
 
+class QMockProxy {
+    private {
+        list<code> rules();
+        *auto return_value;
+
+        list<QMockProxy> others();
+
+        bool strict;
+    }
+
+    public constructor(bool strict) {
+        self.strict = strict;
+    }
+
+    public QMockProxy argEq(int arg_no, auto expected) {
+        push self.rules, bool sub(*list argv) {
+            if (!exists argv[arg_no]) {
+                return False;
+            }
+            return argv[arg_no] === expected;
+        };
+        return self;
+    }
+
+    public nothing return_value(auto return_value) {
+        self.return_value = return_value;
+    }
+
+
+    public nothing addEvaluation(QMockProxy obj) {
+        push self.others, obj;
+    }
+
+    public auto eval(string method_name, *list argv) {
+        bool match = True;
+        foreach code rule in (self.rules) {
+            if (!rule(argv)) {
+                match = False;
+                break;
+            }
+        }
+        if (match) {
+            return self.return_value;
+        }
+
+        foreach QMockProxy obj in (self.others) {
+            try {
+                return obj.eval(method_name, argv);
+            } catch (ex) {
+                switch (ex) {
+                    case "QMOCK-EVAL-FAIL":
+                        # ignore, try next one
+                    break;
+                    default:
+                        rethrow;
+                }
+            }
+        }
+
+        if (self.strict === QMock::STRICT) {
+            throw "QMOCK-EVAL-FAIL", sprintf("Mocked '%s' method evaluation failed", method_name);
+        }
+        return NOTHING;
+    }
+}
+
 class QMock {
     private {
         hash configuration;
@@ -40,6 +106,23 @@ class QMock {
             }
             self.configuration{method_name} = method_code;
         }
+    }
+
+    public QMockProxy _mock(softlist<string> method_names) {
+        auto obj = new QMockProxy(self.strict);
+        foreach string method_name in (method_names) {
+            if (exists self.configuration{method_name}) {
+                auto mth = self.configuration{method_name};
+                if (mth instanceof QMockProxy) {
+                    mth.addEvaluation(obj);
+                } else {
+                    throw "INVALID-ARGUMENT", sprintf("Method %n is already mocked", method_name);
+                }
+            } else {
+                self.configuration{method_name} = obj;
+            }
+        }
+        return obj;
     }
 
     # asserts
@@ -87,7 +170,11 @@ class QMock {
         }
 
         # call mocked code
-        return self.configuration{method_name}(argv);
+        auto mth = self.configuration{method_name};
+        if (mth instanceof QMockProxy) {
+            return mth.eval(method_name, argv);
+        }
+        return mth(argv);
     }
 }
 
