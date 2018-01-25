@@ -11,15 +11,23 @@
 
 %requires QUnit
 
-%include "./Datasource.ql"
+%append-module-path ../src
+%requires QMockSQL
 
 %exec-class DatasourceTest
 
+# --- tested code (production) ---
 
-sub foooo(Qore::SQL::AbstractDatasource ds) {
-    ds.selectRow("ahoj");
-    ds.selectRow("ahoj 2");
+sub productionCall(Qore::SQL::AbstractDatasource ds) {
+    ds.selectRow(" -- sql-id: 1234
+        SELECT * FROM dual
+    ");
+    ds.selectRow(" -- sql-id: 5678
+        SELECT * FROM dual
+    ");
 }
+
+# --- ---
 
 class DatasourceTest inherits QUnit::Test {
 
@@ -44,11 +52,11 @@ class DatasourceTest inherits QUnit::Test {
         ds._mock("selectRow", auto sub(*list argv) {
             string sql = argv[0];
             # mock returned data for queries
-            if (sql =~ /^ahoj$/) {
+            if (sql =~ /-- sql-id: 1234/) {
                 return {"a": 2};
             }
-            if (sql =~ /^ahoj [0-9]$/) {
-                return { "a": "cislo" };
+            if (sql =~ /-- sql-id: [5-8]{4}/) {
+                return {"b": 5};
             }
 
             # if query doesn't match any regexp, call real database
@@ -63,13 +71,11 @@ class DatasourceTest inherits QUnit::Test {
             on_success ds.commit();
             on_error ds.rollback();
 
-            foooo(ds);
+            productionCall(ds);
         }
 
         # assert results
         assertEq(2, ds._assert_called("selectRow"));
-        assertEq(1, ds._assert_called_with_args("selectRow", ("ahoj",)));
-        assertEq(1, ds._assert_called_with_args("selectRow", ("ahoj 2",)));
         assertEq(("selectRow", "selectRow", "commit"), ds._mock_calls);
 
         assertEq(0, elements prodDB._mock_calls);
@@ -81,8 +87,8 @@ class DatasourceTest inherits QUnit::Test {
         ds._mock_settings(QMock::STRICT);
 
         # mock method
-        ds._mock("selectRow").argEq(0, "ahoj").return_value({"a": 2});
-        ds._mock("selectRow").argEq(0, "ahoj 2").return_value({"a": "cislo"});
+        ds._mock("selectRow").argRegex(0, "-- sql-id: 1234").return_value({"a": 2});
+        ds._mock("selectRow").argRegex(0, "-- sql-id: [5-8]{4}").return_value({"b": 5});
         ds._mock(("commit", "rollback"));
 
         # perform the testing
@@ -90,16 +96,11 @@ class DatasourceTest inherits QUnit::Test {
             on_success ds.commit();
             on_error ds.rollback();
 
-            foooo(ds);
+            productionCall(ds);
         }
 
         # assert results
         assertEq(2, ds._assert_called("selectRow"));
-        assertEq(1, ds._assert_called_with_args("selectRow", ("ahoj",)));
-        assertEq(1, ds._assert_called_with_args("selectRow", ("ahoj 2",)));
         assertEq(("selectRow", "selectRow", "commit"), ds._mock_calls);
     }
-
 }
-
-
