@@ -1,0 +1,164 @@
+#!/usr/bin/env qore
+# -*- mode: qore; indent-tabs-mode: nil -*-
+# author: Qore Technologies
+
+%new-style
+%require-types
+%strict-args
+%enable-all-warnings
+%no-child-restrictions
+%require-our
+
+%requires QUnit
+
+%append-module-path ../src
+%requires QMock
+
+%exec-class QMockTest
+
+# TODO doc
+final class QMockAccessor inherits QMock {
+    private:internal constructor() {} # make it as pure abstract class
+
+    public static auto get(QMock mock, string name) {
+        return mock{name};
+    }
+}
+
+class QMockTest inherits QUnit::Test {
+
+    constructor() : QUnit::Test("QMockTest", "1.0") {
+        addTestCase("constructor", \testCtor());
+        addTestCase("settings", \testSettings());
+        addTestCase("mock method with code", \testMockMethodWithCode());
+        addTestCase("mock multiple methods with code", \testMockMultipleMethodsWithCode());
+        addTestCase("call not mocked method when is_strict", \testCallNotMockedMethodWhenStrict());
+        addTestCase("call not mocked method when not is_strict", \testCallNotMockedMethodWhenVague());
+        addTestCase("mocked with asterisk", \testMockedWithAsterisk());
+        addTestCase("mocked method throws", \testMockedMethodThrows());
+
+        set_return_value(main());
+    }
+
+    testCtor() {
+        auto qmock = new QMock();
+
+        # default settings
+        assertEq((), qmock._mock_calls, "default _mock_calls");
+        assertEq({}, qmock._mock_calls_with_args, "default _mock_calls_with_args");
+        assertEq({}, QMockAccessor::get(qmock, "mocked_methods"), "default mocked_method");
+        assertEq(new hash<QMockSettings>(), QMockAccessor::get(qmock, "settings"), "default settings");
+    }
+
+    testSettings() {
+        auto qmock = new QMock();
+        assertEq(QMock::STRICT, QMockAccessor::get(qmock, "settings").is_strict, "default is_strict");
+
+        # update settings
+        qmock._mock_settings({"is_strict": QMock::VAGUE});
+
+        # assert settings change
+        assertEq(QMock::VAGUE, QMockAccessor::get(qmock, "settings").is_strict, "changed is_strict");
+    }
+
+    testMockMethodWithCode() {
+        auto qmock = new QMock();
+        assertEq({}, QMockAccessor::get(qmock, "mocked_methods"), "default mocked_methods");
+
+        # mock method
+        code mocked_code = int sub(*list argv) { return argv[0]+1; };
+        qmock._mock("inc", mocked_code);
+
+        # assert is there
+        assertEq({"inc": mocked_code}, QMockAccessor::get(qmock, "mocked_methods"), "mocked one method");
+
+        # call the mocked method
+        int i = 3;
+        auto ret = qmock.inc(i);
+        assertEq(i+1, ret);
+    }
+
+    testMockMultipleMethodsWithCode() {
+        auto qmock = new QMock();
+        assertEq({}, QMockAccessor::get(qmock, "mocked_methods"));
+
+        # mock methods
+        code mocked_code = bool sub(*list argv) { return False; };
+        qmock._mock(("isFoo", "isBar"), mocked_code);
+
+        # assert are there
+        assertEq({
+            "isFoo": mocked_code,
+            "isBar": mocked_code,
+        }, QMockAccessor::get(qmock, "mocked_methods"));
+
+        # mock again the same one and some others
+        assertThrows("INVALID-ARGUMENT", "^Method \"isBar\" is already mocked$",
+                     sub() { qmock._mock(("isXYZ", "isBar", "isABC"), mocked_code); });
+
+        # ensure that not even isXYZ nor isABC was mocked
+        assertEq({
+            "isFoo": mocked_code,
+            "isBar": mocked_code,
+        }, QMockAccessor::get(qmock, "mocked_methods"));
+    }
+
+    testCallNotMockedMethodWhenStrict() {
+        auto qmock = new QMock();
+        assertEq(QMock::STRICT, QMockAccessor::get(qmock, "settings").is_strict, "is_strict");
+
+        assertThrows("INVALID-ARGUMENT", "^Method \"inc\" is not mocked$",
+                     sub() { qmock.inc(3); });
+        assertEq((), qmock._mock_calls, "no mocked calls yet");
+        assertEq({}, qmock._mock_calls_with_args, "no mocked calls with args");
+    }
+
+    testCallNotMockedMethodWhenVague() {
+        auto qmock = new QMock();
+        qmock._mock_settings({"is_strict": QMock::VAGUE});
+        assertEq(QMock::VAGUE, QMockAccessor::get(qmock, "settings").is_strict, "not is_strict");
+
+        auto ret = qmock.inc(3);
+        assertEq(NOTHING, ret, "not mocked call returns NOTHING");
+        assertEq(("inc",), qmock._mock_calls, "mocked calls list");
+        assertEq({"inc": ((3,),)}, qmock._mock_calls_with_args, "mocked calls with args");
+
+        auto ret2 = qmock.inc(4);
+        assertEq(NOTHING, ret2, "not mocked call returns NOTHING");
+        assertEq(("inc", "inc",), qmock._mock_calls, "mocked calls list");
+        assertEq({"inc": ((3,), (4,),)}, qmock._mock_calls_with_args, "mocked calls with args");
+    }
+
+    testMockedWithAsterisk() {
+        auto qmock = new QMock();
+        assertEq(QMock::STRICT, QMockAccessor::get(qmock, "settings").is_strict, "is_strict");
+
+        int called = 0;
+        qmock._mock("*", sub(*list argv) { called++; });
+
+        qmock.foo(1);
+        qmock.bar(2);
+
+        assertEq(2, called, "mocked * method was called twice");
+        assertEq(("foo", "bar",), qmock._mock_calls, "mocked calls list");
+        assertEq({
+            "foo": ((1,),),
+            "bar": ((2,),),
+        }, qmock._mock_calls_with_args, "mocked calls with args");
+    }
+
+    testMockedMethodThrows() {
+        auto qmock = new QMock();
+
+        int called = 0;
+        qmock._mock("throw", sub(*list argv) { called++; throw argv[0], argv[1]; });
+
+        string exc = "EXC";
+        string desc = "desc";
+        assertThrows(exc, "^"+desc+"$", sub() { qmock.throw(exc, desc); });
+
+        assertEq(1, called, "mocked method was called");
+        assertEq(("throw",), qmock._mock_calls, "mocked calls list");
+        assertEq({"throw": ((exc, desc,),)}, qmock._mock_calls_with_args, "mocked calls with args");
+    }
+}
