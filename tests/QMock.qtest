@@ -25,22 +25,105 @@ final class QMockAccessor inherits QMock {
     }
 }
 
+# TODO doc
+final class QMockProxyAccessor inherits QMockProxy {
+    private:internal constructor() {} # make it as pure abstract class
+
+    public static auto get(QMockProxy proxy, string name) {
+        return proxy{name};
+    }
+}
+
 class QMockTest inherits QUnit::Test {
 
     constructor() : QUnit::Test("QMockTest", "1.0") {
-        addTestCase("constructor", \testCtor());
-        addTestCase("settings", \testSettings());
-        addTestCase("mock method with code", \testMockMethodWithCode());
-        addTestCase("mock multiple methods with code", \testMockMultipleMethodsWithCode());
-        addTestCase("call not mocked method when is_strict", \testCallNotMockedMethodWhenStrict());
-        addTestCase("call not mocked method when not is_strict", \testCallNotMockedMethodWhenVague());
-        addTestCase("mocked with asterisk", \testMockedWithAsterisk());
-        addTestCase("mocked method throws", \testMockedMethodThrows());
+        # QMock tests
+        addTestCase("QMock: constructor", \testQMockCtor());
+        addTestCase("QMock: settings", \testQMockSettings());
+        addTestCase("QMock: mock method with code", \testQMockMockMethodWithCode());
+        addTestCase("QMock: mock multiple methods with code", \testQMockMockMultipleMethodsWithCode());
+        addTestCase("QMock: call not mocked method when is_strict", \testQMockCallNotMockedMethodWhenStrict());
+        addTestCase("QMock: call not mocked method when not is_strict", \testQMockCallNotMockedMethodWhenVague());
+        addTestCase("QMock: mocked with asterisk", \testQMockMockedWithAsterisk());
+        addTestCase("QMock: mocked method throws", \testQMockMockedMethodThrows());
+
+        # QMockProxy tests
+        addTestCase("QMockProxy: constructor", \testQMockProxyCtor());
+        addTestCase("QMockProxy: addEvaluation", \testQMockProxyAddEvaluation());
+        addTestCase("QMockProxy: return value", \testQMockProxyReturnValue());
+        addTestCase("QMockProxy: return value as code to exec", \testQMockProxyReturnValueExecCode());
+        addTestCase("QMockProxy: throws", \testQMockProxyThrows());
+        addTestCase("QMockProxy: match second rule, skip the first", \testQMockProxyMatchSecond());
 
         set_return_value(main());
     }
 
-    testCtor() {
+    testQMockProxyCtor() {
+        auto proxy = new QMockProxy();
+
+        # default settings
+        assertEq((), QMockProxyAccessor::get(proxy, "rules"), "default rules");
+        assertEq(NOTHING, QMockProxyAccessor::get(proxy, "return_value"), "default return_value");
+        assertEq((), QMockProxyAccessor::get(proxy, "others"), "default other proxies");
+    }
+
+    testQMockProxyAddEvaluation() {
+        auto proxy = new QMockProxy();
+        assertEq(new list<QMockProxy>(), QMockProxyAccessor::get(proxy, "others"), "default other proxies");
+
+        # add other proxy
+        auto proxy2 = new QMockProxy();
+        proxy.addEvaluation(proxy2);
+
+        assertEq((proxy2, ), QMockProxyAccessor::get(proxy, "others"), "added another proxies");
+    }
+
+    testQMockProxyReturnValue() {
+        auto proxy = new QMockProxy();
+
+        # set return value
+        int r = 4;
+        proxy.return_value(r);
+        assertEq(r, QMockProxyAccessor::get(proxy, "return_value"), "return_value set");
+
+        # assert eval returns the return value
+        auto eval_ret = proxy.eval();
+        assertEq(r, eval_ret, "eval returns return_value");
+    }
+
+    testQMockProxyReturnValueExecCode() {
+        auto proxy = new QMockProxy();
+
+        # set return value
+        int called = 0;
+        int r = 4;
+        code func_code = int sub() { called++; return r; };
+        proxy.return_value(func_code);
+        assertEq(func_code, QMockProxyAccessor::get(proxy, "return_value"), "return_value set");
+
+        # assert eval returns the return value
+        auto eval_ret = proxy.eval();
+        assertEq(1, called, "return_value code called once");
+        assertEq(r, eval_ret, "eval executes return_value code");
+    }
+
+    testQMockProxyThrows() {
+        auto proxy = new QMockProxy();
+
+        # set exception
+        proxy.throw_exception("EXC", "DESC", (1, 2));
+        assertTrue(QMockProxyAccessor::get(proxy, "return_value") instanceof code, "return_value set to code");
+
+        # assert throws
+        assertThrows("EXC", "^DESC$", sub() { proxy.eval(); }, NOTHING, "eval throws exception");
+    }
+
+    testQMockProxyMatchSecond() {
+    }
+
+    # ----------------
+
+    testQMockCtor() {
         auto qmock = new QMock();
 
         # default settings
@@ -50,7 +133,7 @@ class QMockTest inherits QUnit::Test {
         assertEq(new hash<QMockSettings>(), QMockAccessor::get(qmock, "settings"), "default settings");
     }
 
-    testSettings() {
+    testQMockSettings() {
         auto qmock = new QMock();
         assertEq(QMock::STRICT, QMockAccessor::get(qmock, "settings").is_strict, "default is_strict");
 
@@ -61,7 +144,7 @@ class QMockTest inherits QUnit::Test {
         assertEq(QMock::VAGUE, QMockAccessor::get(qmock, "settings").is_strict, "changed is_strict");
     }
 
-    testMockMethodWithCode() {
+    testQMockMockMethodWithCode() {
         auto qmock = new QMock();
         assertEq({}, QMockAccessor::get(qmock, "mocked_methods"), "default mocked_methods");
 
@@ -78,7 +161,7 @@ class QMockTest inherits QUnit::Test {
         assertEq(i+1, ret);
     }
 
-    testMockMultipleMethodsWithCode() {
+    testQMockMockMultipleMethodsWithCode() {
         auto qmock = new QMock();
         assertEq({}, QMockAccessor::get(qmock, "mocked_methods"));
 
@@ -103,7 +186,7 @@ class QMockTest inherits QUnit::Test {
         }, QMockAccessor::get(qmock, "mocked_methods"));
     }
 
-    testCallNotMockedMethodWhenStrict() {
+    testQMockCallNotMockedMethodWhenStrict() {
         auto qmock = new QMock();
         assertEq(QMock::STRICT, QMockAccessor::get(qmock, "settings").is_strict, "is_strict");
 
@@ -115,7 +198,7 @@ class QMockTest inherits QUnit::Test {
         assertEq({}, qmock._mock_calls_with_args, "no mocked calls with args");
     }
 
-    testCallNotMockedMethodWhenVague() {
+    testQMockCallNotMockedMethodWhenVague() {
         auto qmock = new QMock();
         qmock._mock_settings({"is_strict": QMock::VAGUE});
         assertEq(QMock::VAGUE, QMockAccessor::get(qmock, "settings").is_strict, "not is_strict");
@@ -132,7 +215,7 @@ class QMockTest inherits QUnit::Test {
         assertEq({"inc": ((3,), (4,),)}, qmock._mock_calls_with_args, "mocked calls with args");
     }
 
-    testMockedWithAsterisk() {
+    testQMockMockedWithAsterisk() {
         auto qmock = new QMock();
         assertEq(QMock::STRICT, QMockAccessor::get(qmock, "settings").is_strict, "is_strict");
 
@@ -152,7 +235,7 @@ class QMockTest inherits QUnit::Test {
         }, qmock._mock_calls_with_args, "mocked calls with args");
     }
 
-    testMockedMethodThrows() {
+    testQMockMockedMethodThrows() {
         auto qmock = new QMock();
 
         int called = 0;

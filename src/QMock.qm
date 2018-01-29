@@ -23,42 +23,27 @@ module QMock {
 public namespace QMock {
 
     public class QMockProxy {
+    # private members
         private {
-            list<code> rules();
-            *auto return_value;
-
-            list<QMockProxy> others();
+            list<code> rules;
+            auto return_value;
+            list<QMockProxy> others;
         }
 
-        public QMockProxy argEq(int arg_no, auto expected) {
-            push self.rules, bool sub(*list argv) {
-                if (!exists argv[arg_no]) {
-                    return False;
-                }
-                return argv[arg_no] === expected;
-            };
-            return self;
+    #public methods
+        #! TODO doc
+        public constructor() {
+            self.rules = new list<code>();
+            self.return_value = NOTHING;
+            self.others = new list<QMockProxy>();
         }
 
-        public QMockProxy argRegex(int arg_no, string pattern, int options = 0) {
-            push self.rules, bool sub(*list argv) {
-                if (!exists argv[arg_no]) {
-                    return False;
-                }
-                return argv[arg_no].regex(pattern, options);
-            };
-            return self;
-        }
-
-        public nothing return_value(auto return_value) {
-            self.return_value = return_value;
-        }
-
-
+        #! TODO doc
         public nothing addEvaluation(QMockProxy obj) {
             push self.others, obj;
         }
 
+        #! TODO doc
         public auto eval(*list argv) {
             bool match = True;
             foreach code rule in (self.rules) {
@@ -68,6 +53,10 @@ public namespace QMock {
                 }
             }
             if (match) {
+                if (self.return_value instanceof code) {
+                    code rv = self.return_value;
+                    return rv(argv); # cannot call self.return_value(argv)
+                }
                 return self.return_value;
             }
 
@@ -86,6 +75,40 @@ public namespace QMock {
             }
 
             throw "QMOCK-PROXY-EVAL-FAIL";
+        }
+
+        # --------------
+
+        #! TODO doc
+        public QMockProxy argEq(int arg_no, auto expected) {
+            push self.rules, bool sub(*list argv) {
+                if (!exists argv[arg_no]) {
+                    return False;
+                }
+                return argv[arg_no] === expected;
+            };
+            return self;
+        }
+
+        #! TODO doc
+        public QMockProxy argRegex(int arg_no, string pattern, int options = 0) {
+            push self.rules, bool sub(*list argv) {
+                if (!exists argv[arg_no]) {
+                    return False;
+                }
+                return argv[arg_no].regex(pattern, options);
+            };
+            return self;
+        }
+
+        #! TODO doc
+        public nothing return_value(auto return_value) {
+            self.return_value = return_value;
+        }
+
+        #! TODO doc
+        public nothing throw_exception(auto err, auto desc, auto arg) {
+            self.return_value = sub() { throw err, desc, arg; };
         }
     }
 
@@ -120,10 +143,10 @@ public namespace QMock {
         /* Note: Use only default ctor for QMock, so no dependencies are inherited.
          */
         public constructor() {
-            mocked_methods = hash();
-            settings = new hash<QMockSettings>();
-            _mock_calls = list();
-            _mock_calls_with_args = hash();
+            self.mocked_methods = hash();
+            self.settings = new hash<QMockSettings>();
+            self._mock_calls = list();
+            self._mock_calls_with_args = hash();
         }
 
         #! Updates settings of the instance. See @QMockSettings
