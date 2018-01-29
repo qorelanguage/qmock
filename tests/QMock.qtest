@@ -107,8 +107,10 @@ class QMockTest inherits QUnit::Test {
         auto qmock = new QMock();
         assertEq(QMock::STRICT, QMockAccessor::get(qmock, "settings").is_strict, "is_strict");
 
+        # calling not mocked method throws
         assertThrows("INVALID-ARGUMENT", "^Method \"inc\" is not mocked$",
                      sub() { qmock.inc(3); });
+        # no mocked call logged
         assertEq((), qmock._mock_calls, "no mocked calls yet");
         assertEq({}, qmock._mock_calls_with_args, "no mocked calls with args");
     }
@@ -118,6 +120,7 @@ class QMockTest inherits QUnit::Test {
         qmock._mock_settings({"is_strict": QMock::VAGUE});
         assertEq(QMock::VAGUE, QMockAccessor::get(qmock, "settings").is_strict, "not is_strict");
 
+        # calling not mocked when is_strict == VAGUE
         auto ret = qmock.inc(3);
         assertEq(NOTHING, ret, "not mocked call returns NOTHING");
         assertEq(("inc",), qmock._mock_calls, "mocked calls list");
@@ -134,11 +137,13 @@ class QMockTest inherits QUnit::Test {
         assertEq(QMock::STRICT, QMockAccessor::get(qmock, "settings").is_strict, "is_strict");
 
         int called = 0;
+        # mock "all" with one code
         qmock._mock("*", sub(*list argv) { called++; });
 
         qmock.foo(1);
         qmock.bar(2);
 
+        # call log contains real function names
         assertEq(2, called, "mocked * method was called twice");
         assertEq(("foo", "bar",), qmock._mock_calls, "mocked calls list");
         assertEq({
@@ -151,12 +156,14 @@ class QMockTest inherits QUnit::Test {
         auto qmock = new QMock();
 
         int called = 0;
+        # mock method that throws
         qmock._mock("throw", sub(*list argv) { called++; throw argv[0], argv[1]; });
 
         string exc = "EXC";
         string desc = "desc";
         assertThrows(exc, "^"+desc+"$", sub() { qmock.throw(exc, desc); });
 
+        # call log contains the method even if it throws
         assertEq(1, called, "mocked method was called");
         assertEq(("throw",), qmock._mock_calls, "mocked calls list");
         assertEq({"throw": ((exc, desc,),)}, qmock._mock_calls_with_args, "mocked calls with args");
