@@ -64,7 +64,7 @@ public namespace QMock {
                 try {
                     return obj.eval(argv);
                 } catch (ex) {
-                    switch (ex) {
+                    switch (ex.err) {
                         case "QMOCK-PROXY-EVAL-FAIL":
                             # ignore, try next one
                         break;
@@ -246,7 +246,7 @@ public namespace QMock {
                 try {
                     return mth.eval(argv);
                 } catch (ex) {
-                    switch (ex) {
+                    switch (ex.err) {
                         case "QMOCK-PROXY-EVAL-FAIL":
                             if (self.settings.is_strict === QMock::STRICT) {
                                 throw "INVALID-ARGUMENT", sprintf("Mocked method %n evaluation failed", method_name);
