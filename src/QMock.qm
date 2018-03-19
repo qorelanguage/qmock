@@ -156,6 +156,13 @@ public namespace QMock {
             self._mock_settings(cast<hash<QMockSettings>>(settings));
         }
 
+        #! Updates settings of the instance. See @QMockSettings
+        /* @param settings      New settings that should be used.
+         */
+        public nothing _mock_settings(hash<QMockSettings> settings) {
+            self.settings = settings;
+        }
+
         #! Mocks @p method_names method(s) with passed @method_code code.
         /* @param method_names      One or more moethod names that should be mocked
            @param method_code       Code with which method(s) should be mocked
@@ -258,14 +265,6 @@ public namespace QMock {
                 }
             }
             return mth(argv);
-        }
-
-    # private methods
-        #! Updates settings of the instance. See @QMockSettings
-        /* @param settings      New settings that should be used.
-         */
-        private nothing _mock_settings(hash<QMockSettings> settings) {
-            self.settings = settings;
         }
     }
 
