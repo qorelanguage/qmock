@@ -43,6 +43,8 @@ class QMockTest inherits QUnit::Test {
         addTestCase("QMock: mock method with code", \testQMockMockMethodWithCode());
         addTestCase("QMock: mock multiple methods with code", \testQMockMockMultipleMethodsWithCode());
         addTestCase("QMock: call not mocked method when is_strict", \testQMockCallNotMockedMethodWhenStrict());
+        addTestCase("QMock: call mocked method when is_strict but evaluation fails",
+                    \testQMockCallMockMethodAndEvaluationFails());
         addTestCase("QMock: call not mocked method when not is_strict", \testQMockCallNotMockedMethodWhenVague());
         addTestCase("QMock: mocked with asterisk", \testQMockMockedWithAsterisk());
         addTestCase("QMock: mocked method throws", \testQMockMockedMethodThrows());
@@ -196,6 +198,21 @@ class QMockTest inherits QUnit::Test {
         # no mocked call logged
         assertEq((), qmock._mock_calls, "no mocked calls yet");
         assertEq({}, qmock._mock_calls_with_args, "no mocked calls with args");
+    }
+
+    testQMockCallMockMethodAndEvaluationFails() {
+        auto qmock = new QMock();
+        assertEq(QMock::STRICT, QMockAccessor::get(qmock, "settings").is_strict, "is_strict");
+
+        # mock method
+        qmock._mock("foo").argEq(0, "xml").return_value(1);
+
+        # calling mocked method throws because argument 0 is not xml
+        assertThrows("INVALID-ARGUMENT", "^Mocked method \"foo\" evaluation failed$",
+                     sub() { qmock.foo("csv"); });
+        # no mocked call logged
+        assertEq(("foo",), qmock._mock_calls, "mocked method calls even if evaluation failed");
+        assertEq({"foo": (("csv",),)}, qmock._mock_calls_with_args, "no mocked calls with args");
     }
 
     testQMockCallNotMockedMethodWhenVague() {
