@@ -151,7 +151,7 @@ class QMockTest inherits QUnit::Test {
         assertEq({}, QMockAccessor::get(qmock, "mocked_methods"), "default mocked_methods");
 
         # mock method
-        code mocked_code = int sub(*list argv) { return argv[0]+1; };
+        code mocked_code = int sub(int i) { return ++i; };
         qmock._mock("inc", mocked_code);
 
         # assert is there
@@ -168,7 +168,7 @@ class QMockTest inherits QUnit::Test {
         assertEq({}, QMockAccessor::get(qmock, "mocked_methods"));
 
         # mock methods
-        code mocked_code = bool sub(*list argv) { return False; };
+        code mocked_code = bool sub() { return False; };
         qmock._mock(("isFoo", "isBar"), mocked_code);
 
         # assert are there
@@ -238,7 +238,10 @@ class QMockTest inherits QUnit::Test {
 
         int called = 0;
         # mock "all" with one code
-        qmock._mock("*", sub(*list argv) { called++; });
+        qmock._mock("*", sub() {
+            argv = (); # because %strict-args is used, we have to touch argv
+            called++;
+        });
 
         qmock.foo(1);
         qmock.bar(2);
@@ -257,7 +260,7 @@ class QMockTest inherits QUnit::Test {
 
         int called = 0;
         # mock method that throws
-        qmock._mock("throw", sub(*list argv) { called++; throw argv[0], argv[1]; });
+        qmock._mock("throw", sub(string err, *string desc) { called++; throw err, desc; });
 
         string exc = "EXC";
         string desc = "desc";
