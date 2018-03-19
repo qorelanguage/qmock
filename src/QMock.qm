@@ -54,8 +54,7 @@ public namespace QMock {
             }
             if (match) {
                 if (self.return_value instanceof code) {
-                    code rv = self.return_value;
-                    return rv(argv); # cannot call self.return_value(argv)
+                    return call_function_args(self.return_value, argv);
                 }
                 return self.return_value;
             }
@@ -134,8 +133,8 @@ public namespace QMock {
 
     # private members
         private {
-            hash mocked_methods;
-            hash<QMockSettings> settings;
+            hash<string, auto> mocked_methods; # hash indexed by method name with value of either 'code' or 'QMockProxy'
+            hash<QMockSettings> settings;      # settings of the QMock object
         }
 
     #public methods
@@ -143,7 +142,7 @@ public namespace QMock {
         /* Note: Use only default ctor for QMock, so no dependencies are inherited.
          */
         public constructor() {
-            self.mocked_methods = hash();
+            self.mocked_methods = new hash<string, auto>();
             self.settings = new hash<QMockSettings>();
             self._mock_calls = list();
             self._mock_calls_with_args = hash();
@@ -264,7 +263,8 @@ public namespace QMock {
                     }
                 }
             }
-            return mth(argv);
+
+            return call_function_args(mth, argv);
         }
     }
 
