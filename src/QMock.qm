@@ -79,6 +79,14 @@ public namespace QMock {
         # --------------
 
         #! TODO doc
+        public QMockProxy argsEq(*list expected_argv) {
+            push self.rules, bool sub(*list argv) {
+                return expected_argv === argv;
+            };
+            return self;
+        }
+
+        #! TODO doc
         public QMockProxy argEq(int arg_no, auto expected) {
             push self.rules, bool sub(*list argv) {
                 if (!exists argv[arg_no]) {
