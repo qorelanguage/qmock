@@ -56,6 +56,9 @@ class QMockTest inherits QUnit::Test {
         addTestCase("QMockProxy: return value as code to exec", \testQMockProxyReturnValueExecCode());
         addTestCase("QMockProxy: throws", \testQMockProxyThrows());
         addTestCase("QMockProxy: match second rule, skip the first", \testQMockProxyMatchSecond());
+        addTestCase("QMockProxy: argsEq with list", \testQMockProxyArgsEqWithList());
+        addTestCase("QMockProxy: argsEq with empty list", \testQMockProxyArgsEqWithEmptyList());
+        addTestCase("QMockProxy: argsEq with NOTHING", \testQMockProxyArgsEqWithNothing());
 
         set_return_value(main());
     }
@@ -121,8 +124,46 @@ class QMockTest inherits QUnit::Test {
     }
 
     testQMockProxyMatchSecond() {
+        # TODO
     }
 
+    testQMockProxyArgsEqWithList() {
+        auto proxy = new QMockProxy();
+
+        proxy.argsEq((1,2,3)).return_value("works");
+
+        # asserts
+        assertEq("works", proxy.eval((1,2,3)));
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(); });   # NOTHING
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(()); }); # empty list
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(("1", "2", "3")); });  # ===
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((1, 2, 3, 4)); });
+    }
+
+    testQMockProxyArgsEqWithEmptyList() {
+        auto proxy = new QMockProxy();
+
+        proxy.argsEq(()).return_value("works");
+
+        # asserts
+        assertEq("works", proxy.eval(()));
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(); });  # NOTHING is not empty list
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(("1", "2", "3")); });
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((1, 2, 3, 4)); });
+    }
+
+    testQMockProxyArgsEqWithNothing() {
+        auto proxy = new QMockProxy();
+
+        proxy.argsEq().return_value("works");
+
+        # asserts
+        assertEq("works", proxy.eval());
+        assertEq("works", proxy.eval(NOTHING));
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(()); });  # empty list is not NOTHING
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((1, 2, 3)); });
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(("1", "2", "3")); });
+    }
     # ----------------
 
     testQMockCtor() {
