@@ -212,7 +212,7 @@ public namespace QMock {
         #! TODO doc
         public int _assert_called_with_args(string method_name, list args) {
             int amount_of_calls = 0;
-            foreach list called_args in (\self._mock_calls_with_args{method_name}) {
+            foreach list called_args in (self._mock_calls_with_args{method_name}) {
                 amount_of_calls += (called_args === args);
             }
             return amount_of_calls;
@@ -220,7 +220,7 @@ public namespace QMock {
 
         #! TODO doc
         public bool _assert_called_once_with_args(string method_name, list args) {
-            return self._assert_called_once(method_name) && self._assert_called_once_with_args(method_name, args);
+            return 1 === self._assert_called_with_args(method_name, args);
         }
 
         #! TODO doc
