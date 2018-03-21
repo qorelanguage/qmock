@@ -1,0 +1,138 @@
+#!/usr/bin/env qore
+# -*- mode: qore; indent-tabs-mode: nil -*-
+# author: Qore Technologies
+
+%new-style
+%require-types
+%strict-args
+%enable-all-warnings
+
+%requires QUnit
+
+%append-module-path ../src
+%requires QMockSQL
+
+%exec-class DatasourceTest
+
+# --- tested code (production) ---
+
+*hash sub productionCall(Qore::SQL::AbstractDatasource ds) {
+    *hash ret1 = ds.selectRow(" -- sql-id: 1234
+        SELECT * FROM dual
+    ");
+    *hash ret2 = ds.selectRow(" -- sql-id: 5678
+        SELECT * FROM dual
+    ");
+    return ret1 + ret2;
+}
+
+# --- ---
+
+class DatasourceTest inherits QUnit::Test {
+
+    constructor() : QUnit::Test("DatasourceTest", "1.0") {
+
+        addTestCase("mocked with code with calling production", \test_mockWithCodeAndProduction());
+        addTestCase("mocked with proxies", \test_mockWithProxies());
+        addTestCase("mocked with throwing an error", \test_throwingError());
+
+        set_return_value(main());
+    }
+
+    test_mockWithCodeAndProduction() {
+        # real production database
+        auto prodDB = new DatasourceMock();
+        prodDB._mock_settings({"is_strict": QMock::VAGUE});  # allow to call anything, this should be real Datasource
+
+        # mock database
+        auto ds = new DatasourceMock();
+        ds._mock_settings({"is_strict": QMock::STRICT});
+
+        # mock method
+        ds._mock("selectRow", auto sub(string sql) {
+            # mock returned data for queries
+            if (sql =~ /-- sql-id: 1234/) {
+                return {"a": 2};
+            }
+            if (sql =~ /-- sql-id: [5-8]{4}/) {
+                return {"b": 5};
+            }
+
+            # if query doesn't match any regexp, call the real database
+            return prodDB.selectRow(sql);
+        });
+
+        # mock all other methods (like commit, etc)
+        ds._mock("*", auto sub(*list argv) {});
+
+        # perform the testing
+        *hash return_value;
+        {
+            on_success ds.commit();
+            on_error ds.rollback();
+
+            return_value = productionCall(ds);
+        }
+
+        # assert results
+        assertEq(2, ds._assert_called("selectRow"));
+        assertEq(("selectRow", "selectRow", "commit"), ds._mock_calls);
+
+        assertEq(0, elements prodDB._mock_calls);
+        assertEq({"a": 2, "b": 5}, return_value);
+    }
+
+    test_mockWithProxies() {
+        # mock database
+        auto ds = new DatasourceMock();
+        ds._mock_settings({"is_strict": QMock::STRICT});
+
+        # mock method
+        ds._mock("selectRow").argRegex(0, "-- sql-id: 1234").return_value({"a": 2});
+        ds._mock("selectRow").argRegex(0, "-- sql-id: [5-8]{4}").return_value({"b": 5});
+        ds._mock(("commit", "rollback")); # do nothing, just mock
+
+        # perform the testing
+        *hash return_value;
+        {
+            on_success ds.commit();
+            on_error ds.rollback();
+
+            return_value = productionCall(ds);
+        }
+
+        # assert results
+        assertEq(2, ds._assert_called("selectRow"));
+        assertEq(("selectRow", "selectRow", "commit"), ds._mock_calls);
+        assertEq({"a": 2, "b": 5}, return_value);
+    }
+
+    test_throwingError() {
+        # mock database
+        auto ds = new DatasourceMock();
+        ds._mock_settings({"is_strict": QMock::STRICT});
+
+        # mock method
+        ds._mock("selectRow").argRegex(0, "-- sql-id: 1234").return_value({"b": 2});
+        # mock to throw
+        ds._mock("selectRow").argRegex(0, "-- sql-id: [5-8]{4}").throw_exception("SQL-ERROR", "Too many rows to select");
+        ds._mock(("commit", "rollback")); # do nothing, just mock
+
+        # perform the testing
+        *hash return_value;
+        code test_code = auto sub() {
+            on_success ds.commit();
+            on_error ds.rollback();
+
+            return productionCall(ds);
+        };
+
+        assertThrows("SQL-ERROR", "^Too many rows to select$",
+                     sub() { test_code(); });
+
+        # assert results
+        assertEq(2, ds._assert_called("selectRow"));
+        assertEq(("selectRow", "selectRow", "rollback"), ds._mock_calls);
+        assertEq(NOTHING, return_value);
+    }
+}

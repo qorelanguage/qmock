@@ -1,0 +1,33 @@
+#!/usr/bin/env qore
+# -*- mode: qore; indent-tabs-mode: nil -*-
+# author: Qore Technologies
+
+%new-style
+%require-types
+%strict-args
+%enable-all-warnings
+%no-child-restrictions
+%require-our
+
+%requires QUnit
+
+%append-module-path ../src
+%requires QMockSQL
+
+%exec-class QMockSQLTest
+
+class QMockSQLTest inherits QUnit::Test {
+
+    constructor() : QUnit::Test("QMockSQLTest", "1.0") {
+        # DatasourceMock
+        addTestCase("DatasourceMock: test inherits AbstractDatasource", \test_DatasourceMockinheritsAbstractDatasource());
+
+        set_return_value(main());
+    }
+
+    test_DatasourceMockinheritsAbstractDatasource() {
+        auto ds = new DatasourceMock();
+        assertTrue(ds instanceof ::QMock::SQL::DatasourceMock);
+        assertTrue(ds instanceof ::Qore::SQL::AbstractDatasource);
+    }
+}
