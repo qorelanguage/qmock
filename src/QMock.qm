@@ -114,7 +114,7 @@ public namespace QMock {
         }
 
         #! TODO doc
-        public nothing throw_exception(auto err, auto desc, auto arg) {
+        public nothing throw_exception(auto err, auto desc = NOTHING, auto arg = NOTHING) {
             self.return_value = sub() { throw err, desc, arg; };
         }
     }
