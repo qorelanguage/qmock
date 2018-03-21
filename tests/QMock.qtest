@@ -59,6 +59,7 @@ class QMockTest inherits QUnit::Test {
         addTestCase("QMockProxy: argsEq with list", \testQMockProxyArgsEqWithList());
         addTestCase("QMockProxy: argsEq with empty list", \testQMockProxyArgsEqWithEmptyList());
         addTestCase("QMockProxy: argsEq with NOTHING", \testQMockProxyArgsEqWithNothing());
+        addTestCase("QMockProxy: throws when mock method expects args", \testQMockProxyThrowsMockedWithArgs());
 
         set_return_value(main());
     }
@@ -164,6 +165,19 @@ class QMockTest inherits QUnit::Test {
         assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((1, 2, 3)); });
         assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(("1", "2", "3")); });
     }
+
+    testQMockProxyThrowsMockedWithArgs() {
+        auto proxy = new QMockProxy();
+
+        # mock to throw
+        proxy.throw_exception("EXC");
+
+        # evaluate without arguments
+        assertThrows("EXC", NOTHING, sub() { proxy.eval(); });
+        # evaluate with arguments
+        assertThrows("EXC", NOTHING, sub() { proxy.eval((1,2)); });
+    }
+
     # ----------------
 
     testQMockCtor() {

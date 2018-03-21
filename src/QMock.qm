@@ -115,7 +115,10 @@ public namespace QMock {
 
         #! TODO doc
         public nothing throw_exception(auto err, auto desc = NOTHING, auto arg = NOTHING) {
-            self.return_value = sub() { throw err, desc, arg; };
+            self.return_value = sub() {
+                argv = NOTHING; # suppress error when PO_REQUIRE_TYPES or PO_STRICT_ARGS is set
+                throw err, desc, arg;
+            };
         }
     }
 
