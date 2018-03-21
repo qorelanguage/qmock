@@ -26,8 +26,7 @@ module QMockSQL {
 public namespace QMock {
 public namespace SQL {
 
-    # TODO replace all these calls with return call_object_method_args(qmock, get_thread_call_stack()[1].function, argv);
-    # if its possible to do it this way when inheriting interface...?
+    #! TODO doc
     public class DatasourceMock inherits QMock, Qore::SQL::AbstractDatasource {
         *string getPassword() { return QMock::methodGate("getPassword"); }
         *string getOSEncoding() { return QMock::methodGate("getOSEncoding"); }
@@ -54,7 +53,7 @@ public namespace SQL {
         any vselectRow(string sql, *softlist vargs) { return QMock::methodGate("vselectRow", sql, vargs); }
         any vexec(string sql, *softlist vargs) { return QMock::methodGate("vexec", sql, vargs); }
         *string getUserName() { return QMock::methodGate("getUserName"); }
-        AbstractSQLStatement getSQLStatement() { return QMock::methodGate("getSQLStatement"); }
+        SQLStatement getSQLStatement() { return QMock::methodGate("getSQLStatement"); }
     }
 
 } # namespace
