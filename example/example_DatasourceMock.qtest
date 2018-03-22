@@ -42,11 +42,11 @@ class DatasourceTest inherits QUnit::Test {
     test_mockWithCodeAndProduction() {
         # real production database
         auto prodDB = new DatasourceMock();
-        prodDB._mock_settings({"is_strict": QMock::VAGUE});  # allow to call anything, this should be real Datasource
+        prodDB._mockSettings({"is_strict": QMock::VAGUE});  # allow to call anything, this should be real Datasource
 
         # mock database
         auto ds = new DatasourceMock();
-        ds._mock_settings({"is_strict": QMock::STRICT});
+        ds._mockSettings({"is_strict": QMock::STRICT});
 
         # mock method
         ds._mock("selectRow", auto sub(string sql) {
@@ -75,7 +75,7 @@ class DatasourceTest inherits QUnit::Test {
         }
 
         # assert results
-        assertEq(2, ds._assert_called("selectRow"));
+        assertEq(2, ds._assertCalled("selectRow"));
         assertEq(("selectRow", "selectRow", "commit"), ds._mock_calls);
 
         assertEq(0, elements prodDB._mock_calls);
@@ -85,11 +85,11 @@ class DatasourceTest inherits QUnit::Test {
     test_mockWithProxies() {
         # mock database
         auto ds = new DatasourceMock();
-        ds._mock_settings({"is_strict": QMock::STRICT});
+        ds._mockSettings({"is_strict": QMock::STRICT});
 
         # mock method
-        ds._mock("selectRow").argRegex(0, "-- sql-id: 1234").return_value({"a": 2});
-        ds._mock("selectRow").argRegex(0, "-- sql-id: [5-8]{4}").return_value({"b": 5});
+        ds._mock("selectRow").argRegex(0, "-- sql-id: 1234").returnValue({"a": 2});
+        ds._mock("selectRow").argRegex(0, "-- sql-id: [5-8]{4}").returnValue({"b": 5});
         ds._mock(("commit", "rollback")); # do nothing, just mock
 
         # perform the testing
@@ -102,7 +102,7 @@ class DatasourceTest inherits QUnit::Test {
         }
 
         # assert results
-        assertEq(2, ds._assert_called("selectRow"));
+        assertEq(2, ds._assertCalled("selectRow"));
         assertEq(("selectRow", "selectRow", "commit"), ds._mock_calls);
         assertEq({"a": 2, "b": 5}, return_value);
     }
@@ -110,12 +110,12 @@ class DatasourceTest inherits QUnit::Test {
     test_throwingError() {
         # mock database
         auto ds = new DatasourceMock();
-        ds._mock_settings({"is_strict": QMock::STRICT});
+        ds._mockSettings({"is_strict": QMock::STRICT});
 
         # mock method
-        ds._mock("selectRow").argRegex(0, "-- sql-id: 1234").return_value({"b": 2});
+        ds._mock("selectRow").argRegex(0, "-- sql-id: 1234").returnValue({"b": 2});
         # mock to throw
-        ds._mock("selectRow").argRegex(0, "-- sql-id: [5-8]{4}").throw_exception("SQL-ERROR", "Too many rows to select");
+        ds._mock("selectRow").argRegex(0, "-- sql-id: [5-8]{4}").throwException("SQL-ERROR", "Too many rows to select");
         ds._mock(("commit", "rollback")); # do nothing, just mock
 
         # perform the testing
@@ -131,7 +131,7 @@ class DatasourceTest inherits QUnit::Test {
                      sub() { test_code(); });
 
         # assert results
-        assertEq(2, ds._assert_called("selectRow"));
+        assertEq(2, ds._assertCalled("selectRow"));
         assertEq(("selectRow", "selectRow", "rollback"), ds._mock_calls);
         assertEq(NOTHING, return_value);
     }

@@ -74,10 +74,10 @@ public namespace QMock {
 
         #! Evaluates the QMockProxy.
         /** @param argv    List of arguments (or NOTHING) originally passed as arguments
-          * @returns auto   Returns any value that was previously set via QMockProxy::return_value
+          * @returns auto   Returns any value that was previously set via QMockProxy::returnValue
           * @throws "QMOCK-PROXY-EVAL-FAIL"   If none of the rules nor QMockProxies from chain comply.
-          * @throws any     Throws any other exception that was previously set either via QMockProxy::exec_code
-          *                 or via QMockProxy::throw_exception
+          * @throws any     Throws any other exception that was previously set either via QMockProxy::execCode
+          *                 or via QMockProxy::throwException
           */
         public auto eval(*list argv) {
             # try if all rules comply (no rules = always comply)
@@ -167,9 +167,9 @@ public namespace QMock {
           * @throws "INVALID-ARGUMENT" when the return value was previously set
           * @throws "INVALID-ARGUMENT" when the exec code was previously set
           *
-          * Note: Either return_value or exec_code must be set, never both.
+          * Note: Either returnValue or execCode must be set, never both.
           */
-        public nothing return_value(auto return_value) {
+        public nothing returnValue(auto return_value) {
             if (self.return_value !== NOTHING) {
                 throw "INVALID-ARGUMENT", sprintf("Return value was already set to %y", self.return_value);
             }
@@ -187,9 +187,9 @@ public namespace QMock {
           * @throws "INVALID-ARGUMENT" when the exec code was previously set
           * @throws "INVALID-ARGUMENT" when the return value was previously set
           *
-          * Note: Either return_value or exec_code must be set, never both.
+          * Note: Either returnValue or execCode must be set, never both.
           */
-        public nothing exec_code(code exec_code) {
+        public nothing execCode(code exec_code) {
             if (self.return_value !== NOTHING) {
                 throw "INVALID-ARGUMENT", sprintf("Return value was already set to %y", self.return_value);
             }
@@ -204,12 +204,12 @@ public namespace QMock {
           * @param desc    the description of the thrown exception
           * @param arg     the arguments of the thrown exception
           * @returns NOTHING this is effectively the last call of the chain
-          * @throws "INVALID-ARGUMENT" see QMockProxy::exec_code
+          * @throws "INVALID-ARGUMENT" see QMockProxy::execCode
           *
-          * Note: Either return_value or exec_code or throw_exception must be set, never more.
+          * Note: Either returnValue or execCode or throwException must be set, never more.
           */
-        public nothing throw_exception(auto err, auto desc = NOTHING, auto arg = NOTHING) {
-            self.exec_code(sub() {
+        public nothing throwException(auto err, auto desc = NOTHING, auto arg = NOTHING) {
+            self.execCode(sub() {
                 argv = NOTHING; # suppress error when PO_REQUIRE_TYPES or PO_STRICT_ARGS is set
                 throw err, desc, arg;
             });
@@ -258,14 +258,14 @@ public namespace QMock {
         #! Updates settings of the instance. @see QMockSettings.
         /** @param settings      New settings that should be used.
           */
-        public nothing _mock_settings(hash settings) {
-            self._mock_settings(cast<hash<QMockSettings>>(settings));
+        public nothing _mockSettings(hash settings) {
+            self._mockSettings(cast<hash<QMockSettings>>(settings));
         }
 
         #! Updates settings of the instance. @see QMockSettings.
         /** @param settings      New settings that should be used.
           */
-        public nothing _mock_settings(hash<QMockSettings> settings) {
+        public nothing _mockSettings(hash<QMockSettings> settings) {
             self.settings = settings;
         }
 
@@ -326,7 +326,7 @@ public namespace QMock {
         /** @param method_name      name of the mocked method
           * @returns int    the amount of method calls
           */
-        public int _assert_called(string method_name) {
+        public int _assertCalled(string method_name) {
             return elements select self._mock_calls, $1 === method_name;
         }
 
@@ -334,8 +334,8 @@ public namespace QMock {
         /** @param method_name      name of the mocked method
           * @returns bool    True, if the method was called once; False, otherwise.
           */
-        public bool _assert_called_once(string method_name) {
-            return 1 === self._assert_called(method_name);
+        public bool _assertCalledOnce(string method_name) {
+            return 1 === self._assertCalled(method_name);
         }
 
         #! Tests whether the method @method_name was called with exactly these arguments @args.
@@ -343,7 +343,7 @@ public namespace QMock {
           * @param args             the expected arguments of the mocked method call
           * @returns int    the amount of method calls
           */
-        public int _assert_called_with_args(string method_name, list args) {
+        public int _assertCalledWithArgs(string method_name, list args) {
             int amount_of_calls = 0;
             foreach list called_args in (self._mock_calls_with_args{method_name}) {
                 amount_of_calls += (called_args === args);
@@ -356,8 +356,8 @@ public namespace QMock {
           * @param args             the expected arguments of the mocked method call
           * @returns bool    True, if the method was called once; False, otherwise.
           */
-        public bool _assert_called_once_with_args(string method_name, list args) {
-            return 1 === self._assert_called_with_args(method_name, args);
+        public bool _assertCalledOnceWithArgs(string method_name, list args) {
+            return 1 === self._assertCalledWithArgs(method_name, args);
         }
 
         #! Evaluates the mocked method.

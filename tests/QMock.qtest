@@ -95,7 +95,7 @@ class QMockTest inherits QUnit::Test {
 
         # set return value
         int r = 4;
-        proxy.return_value(r);
+        proxy.returnValue(r);
         assertEq(r, QMockProxyAccessor::get(proxy, "return_value"), "return_value set");
 
         # assert eval returns the return value
@@ -109,7 +109,7 @@ class QMockTest inherits QUnit::Test {
         # set return value
         int called = 0;
         code ret_code = sub() { ++called; };
-        proxy.return_value(ret_code);
+        proxy.returnValue(ret_code);
         assertEq(ret_code, QMockProxyAccessor::get(proxy, "return_value"), "return_value set");
 
         # assert eval returns the return value
@@ -127,7 +127,7 @@ class QMockTest inherits QUnit::Test {
         int called = 0;
         int r = 4;
         code func_code = int sub() { called++; return r; };
-        proxy.exec_code(func_code);
+        proxy.execCode(func_code);
         assertEq(func_code, QMockProxyAccessor::get(proxy, "exec_code"), "exec_code set");
 
         # assert eval returns the return value
@@ -140,7 +140,7 @@ class QMockTest inherits QUnit::Test {
         auto proxy = new QMockProxy();
 
         # set exception
-        proxy.throw_exception("EXC", "DESC", (1, 2));
+        proxy.throwException("EXC", "DESC", (1, 2));
         assertTrue(QMockProxyAccessor::get(proxy, "exec_code") instanceof code, "exec_code set to code");
 
         # assert throws
@@ -150,27 +150,27 @@ class QMockTest inherits QUnit::Test {
     testQMockProxyMixingReturnValueExecCodeThrowException() {
         {
             auto proxy = new QMockProxy();
-            proxy.return_value(1);
+            proxy.returnValue(1);
             assertThrows("INVALID-ARGUMENT", "^Return value was already set to 1$",
-                         sub() { proxy.exec_code(sub(){}); });
+                         sub() { proxy.execCode(sub(){}); });
             assertThrows("INVALID-ARGUMENT", "^Return value was already set to 1$",
-                         sub() { proxy.throw_exception("EXC"); });
+                         sub() { proxy.throwException("EXC"); });
         }
         {
             auto proxy = new QMockProxy();
-            proxy.exec_code(sub(){});
+            proxy.execCode(sub(){});
             assertThrows("INVALID-ARGUMENT", "^Exec code was already set$",
-                         sub() { proxy.return_value(1); });
+                         sub() { proxy.returnValue(1); });
             assertThrows("INVALID-ARGUMENT", "^Exec code was already set$",
-                         sub() { proxy.throw_exception("EXC"); });
+                         sub() { proxy.throwException("EXC"); });
         }
         {
             auto proxy = new QMockProxy();
-            proxy.throw_exception("EXC");
+            proxy.throwException("EXC");
             assertThrows("INVALID-ARGUMENT", "^Exec code was already set$",
-                         sub() { proxy.return_value(1); });
+                         sub() { proxy.returnValue(1); });
             assertThrows("INVALID-ARGUMENT", "^Exec code was already set$",
-                         sub() { proxy.exec_code(sub(){}); });
+                         sub() { proxy.execCode(sub(){}); });
         }
     }
 
@@ -181,7 +181,7 @@ class QMockTest inherits QUnit::Test {
     testQMockProxyArgsEqWithList() {
         auto proxy = new QMockProxy();
 
-        proxy.argsEq((1,2,3)).return_value("works");
+        proxy.argsEq((1,2,3)).returnValue("works");
 
         # asserts
         assertEq("works", proxy.eval((1,2,3)));
@@ -194,7 +194,7 @@ class QMockTest inherits QUnit::Test {
     testQMockProxyArgsEqWithEmptyList() {
         auto proxy = new QMockProxy();
 
-        proxy.argsEq(()).return_value("works");
+        proxy.argsEq(()).returnValue("works");
 
         # asserts
         assertEq("works", proxy.eval(()));
@@ -206,7 +206,7 @@ class QMockTest inherits QUnit::Test {
     testQMockProxyArgsEqWithNothing() {
         auto proxy = new QMockProxy();
 
-        proxy.argsEq().return_value("works");
+        proxy.argsEq().returnValue("works");
 
         # asserts
         assertEq("works", proxy.eval());
@@ -220,7 +220,7 @@ class QMockTest inherits QUnit::Test {
         auto proxy = new QMockProxy();
 
         # mock to throw
-        proxy.throw_exception("EXC");
+        proxy.throwException("EXC");
 
         # evaluate without arguments
         assertThrows("EXC", NOTHING, sub() { proxy.eval(); });
@@ -245,7 +245,7 @@ class QMockTest inherits QUnit::Test {
         assertEq(QMock::STRICT, QMockAccessor::get(qmock, "settings").is_strict, "default is_strict");
 
         # update settings
-        qmock._mock_settings({"is_strict": QMock::VAGUE});
+        qmock._mockSettings({"is_strict": QMock::VAGUE});
 
         # assert settings change
         assertEq(QMock::VAGUE, QMockAccessor::get(qmock, "settings").is_strict, "changed is_strict");
@@ -272,8 +272,8 @@ class QMockTest inherits QUnit::Test {
         auto qmock = new QMock();
 
         # mock the same method with different condition
-        qmock._mock("foo").argEq(0, 1).return_value(3);
-        qmock._mock("foo").argEq(0, 2).return_value(5);
+        qmock._mock("foo").argEq(0, 1).returnValue(3);
+        qmock._mock("foo").argEq(0, 2).returnValue(5);
 
         # assert the calls return proper value based on the argument
         assertEq(3, qmock.foo(1));
@@ -284,10 +284,10 @@ class QMockTest inherits QUnit::Test {
         auto qmock = new QMock();
 
         # mock the method via QMockProxy
-        qmock._mock("foo").argEq(0, 1).return_value(3);
+        qmock._mock("foo").argEq(0, 1).returnValue(3);
 
         # another mock with QMockProxy is allowed
-        qmock._mock("foo").argEq(0, 2).return_value(5);
+        qmock._mock("foo").argEq(0, 2).returnValue(5);
 
         # mocking the same method via code throws
         assertThrows("INVALID-ARGUMENT", "^Method \"foo\" is already mocked$",
@@ -339,7 +339,7 @@ class QMockTest inherits QUnit::Test {
         assertEq(QMock::STRICT, QMockAccessor::get(qmock, "settings").is_strict, "is_strict");
 
         # mock method
-        qmock._mock("foo").argEq(0, "xml").return_value(1);
+        qmock._mock("foo").argEq(0, "xml").returnValue(1);
 
         # calling mocked method throws because argument 0 is not xml
         # the exception contains arguments from evaluation (this cannot be asserted via assertThrows)
@@ -361,7 +361,7 @@ class QMockTest inherits QUnit::Test {
 
     testQMockCallNotMockedMethodWhenVague() {
         auto qmock = new QMock();
-        qmock._mock_settings({"is_strict": QMock::VAGUE});
+        qmock._mockSettings({"is_strict": QMock::VAGUE});
         assertEq(QMock::VAGUE, QMockAccessor::get(qmock, "settings").is_strict, "not is_strict");
 
         # calling not mocked when is_strict == VAGUE
