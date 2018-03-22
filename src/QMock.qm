@@ -22,29 +22,43 @@ module QMock {
 
 public namespace QMock {
 
+    #! Proxy used when mocking methods not via code directly, but with gradually settings.
     public class QMockProxy {
     # private members
         private {
-            list<code> rules;
-            auto return_value;
-            list<QMockProxy> others;
+            list<code> rules;           # list of rules for evaluating (rule code must return boolean)
+            auto return_value;          # the value to return
+            *code exec_code;            # the code to execute
+            list<QMockProxy> others;    # chain of other QMockProxies to evaluate
         }
 
     #public methods
-        #! TODO doc
+        #! Creates the instance of QMockProxy with default settings.
+        /** Default behavior of QMockProxy is to always return NOTHING.
+          */
         public constructor() {
             self.rules = new list<code>();
             self.return_value = NOTHING;
+            self.exec_code = NOTHING;
             self.others = new list<QMockProxy>();
         }
 
-        #! TODO doc
+        #! Adds new QMockProxy to the chain for future evaluation.
+        /** @param obj    new QMockProxy that will be added into the chain
+          */
         public nothing addEvaluation(QMockProxy obj) {
             push self.others, obj;
         }
 
-        #! TODO doc
+        #! Evaluates the QMockProxy.
+        /** @param argv    List of arguments (or NOTHING) originally passed as arguments
+          * @returns auto   Returns any value that was previously set via QMockProxy::return_value
+          * @throws "QMOCK-PROXY-EVAL-FAIL"   If none of the rules nor QMockProxies from chain comply.
+          * @throws any     Throws any other exception that was previously set either via QMockProxy::exec_code
+          *                 or via QMockProxy::throw_exception
+          */
         public auto eval(*list argv) {
+            # try if all rules comply (no rules = always comply)
             bool match = True;
             foreach code rule in (self.rules) {
                 if (!rule(argv)) {
@@ -52,13 +66,17 @@ public namespace QMock {
                     break;
                 }
             }
+
+            # if comply then return
             if (match) {
-                if (self.return_value instanceof code) {
-                    return call_function_args(self.return_value, argv);
+                if (exists self.exec_code) {
+                    # call the exec_code with args and return its value
+                    return call_function_args(self.exec_code, argv);
                 }
                 return self.return_value;
             }
 
+            # if rules didn't comply, try to evaluate next QMockProxy from the chain
             foreach QMockProxy obj in (self.others) {
                 try {
                     return obj.eval(argv);
@@ -73,12 +91,16 @@ public namespace QMock {
                 }
             }
 
+            # if none of the QMockProxies from the chain comply, throw exception
             throw "QMOCK-PROXY-EVAL-FAIL";
         }
 
-        # --------------
+        # -------------- rules ------
 
-        #! TODO doc
+        #! Adds new rule that all arguments must equal the expected ones.
+        /** @param expected_argv    list (or NOTHING) of expected arguments
+          * @returns QMockProxy     self, to allow chaining calls
+          */
         public QMockProxy argsEq(*list expected_argv) {
             push self.rules, bool sub(*list argv) {
                 return expected_argv === argv;
@@ -86,7 +108,11 @@ public namespace QMock {
             return self;
         }
 
-        #! TODO doc
+        #! Adds new rule that specific argument on position @p arg_no must equal (===) the expected value.
+        /** @param arg_no    index of the parameter to be tested (indexed from 0)
+          * @param expected  any expected value of the parameter
+          * @returns QMockProxy     self, to allow chaining calls
+          */
         public QMockProxy argEq(int arg_no, auto expected) {
             push self.rules, bool sub(*list argv) {
                 if (!exists argv[arg_no]) {
@@ -97,7 +123,12 @@ public namespace QMock {
             return self;
         }
 
-        #! TODO doc
+        #! Adds new rule that specific argument on position @p arg_no must match the regular expression.
+        /** @param arg_no    index of the parameter to be tested (indexed from 0)
+          * @param pattern   regular expression pattern
+          * @param options   regular expression options
+          * @returns QMockProxy     self, to allow chaining calls
+          */
         public QMockProxy argRegex(int arg_no, string pattern, int options = 0) {
             push self.rules, bool sub(*list argv) {
                 if (!exists argv[arg_no]) {
@@ -108,26 +139,69 @@ public namespace QMock {
             return self;
         }
 
-        #! TODO doc
+        #! Stores the provided @p return_value and returns it when QMockProxy::eval is called.
+        /** @param return_value     the value that will be returned when evaluating
+          * @returns NOTHING this is effectively the last call of the chain
+          * @throws "INVALID-ARGUMENT" when the return value was previously set
+          * @throws "INVALID-ARGUMENT" when the exec code was previously set
+          *
+          * Note: Either return_value or exec_code must be set, never both.
+          */
         public nothing return_value(auto return_value) {
+            if (self.return_value !== NOTHING) {
+                throw "INVALID-ARGUMENT", sprintf("Return value was already set to %y", self.return_value);
+            }
+            if (self.exec_code !== NOTHING) {
+                throw "INVALID-ARGUMENT", "Exec code was already set";
+            }
             self.return_value = return_value;
         }
 
-        #! TODO doc
+        #! Stores the provided @p exec_code and executes it when QMockProxy::eval is called.
+        /** All arguments from QMockProxy::eval will be passed into the @p exec_code. Returned value from
+          * @p exec_code will be returned to the caller then.
+          * @param exec_code     the code that will be executed when evaluating
+          * @returns NOTHING this is effectively the last call of the chain
+          * @throws "INVALID-ARGUMENT" when the exec code was previously set
+          * @throws "INVALID-ARGUMENT" when the return value was previously set
+          *
+          * Note: Either return_value or exec_code must be set, never both.
+          */
+        public nothing exec_code(code exec_code) {
+            if (self.return_value !== NOTHING) {
+                throw "INVALID-ARGUMENT", sprintf("Return value was already set to %y", self.return_value);
+            }
+            if (self.exec_code !== NOTHING) {
+                throw "INVALID-ARGUMENT", "Exec code was already set";
+            }
+            self.exec_code = exec_code;
+        }
+
+        #! Throws exception with the provided date when QMockProxy::eval is called.
+        /** @param err     the error message of the thrown exception
+          * @param desc    the description of the thrown exception
+          * @param arg     the arguments of the thrown exception
+          * @returns NOTHING this is effectively the last call of the chain
+          * @throws "INVALID-ARGUMENT" see QMockProxy::exec_code
+          *
+          * Note: Either return_value or exec_code or throw_exception must be set, never more.
+          */
         public nothing throw_exception(auto err, auto desc = NOTHING, auto arg = NOTHING) {
-            self.return_value = sub() {
+            self.exec_code(sub() {
                 argv = NOTHING; # suppress error when PO_REQUIRE_TYPES or PO_STRICT_ARGS is set
                 throw err, desc, arg;
-            };
+            });
         }
     }
 
-    #! TODO doc
+    # ----------------------------- QMock --------------------------
+
+    #! QMock settings specifications
     public hashdecl QMockSettings {
-        bool is_strict = STRICT;
+        bool is_strict = STRICT;        # whether the mock shall be strict (throw exception when not mocked)
     }
 
-    #! TODO doc
+    #! Provides the API to mock methods.
     public class QMock {
 
     # public constants
@@ -138,8 +212,8 @@ public namespace QMock {
 
     # public members
         public {
-            list _mock_calls;
-            hash _mock_calls_with_args;
+            list _mock_calls;           # list of calls
+            hash _mock_calls_with_args; # list of calls with its arguments
         }
 
     # private members
@@ -150,8 +224,8 @@ public namespace QMock {
 
     #public methods
         #! Creates instance of QMock.
-        /* Note: Use only default ctor for QMock, so no dependencies are inherited.
-         */
+        /** Note: Use only default ctor for QMock, so no dependencies are inherited.
+          */
         public constructor() {
             self.mocked_methods = new hash<string, auto>();
             self.settings = new hash<QMockSettings>();
@@ -159,27 +233,28 @@ public namespace QMock {
             self._mock_calls_with_args = hash();
         }
 
-        #! Updates settings of the instance. See @QMockSettings
-        /* @param settings      New settings that should be used.
-         */
+        #! Updates settings of the instance. @see QMockSettings.
+        /** @param settings      New settings that should be used.
+          */
         public nothing _mock_settings(hash settings) {
             self._mock_settings(cast<hash<QMockSettings>>(settings));
         }
 
-        #! Updates settings of the instance. See @QMockSettings
-        /* @param settings      New settings that should be used.
-         */
+        #! Updates settings of the instance. @see QMockSettings.
+        /** @param settings      New settings that should be used.
+          */
         public nothing _mock_settings(hash<QMockSettings> settings) {
             self.settings = settings;
         }
 
         #! Mocks @p method_names method(s) with passed @method_code code.
-        /* @param method_names      One or more moethod names that should be mocked
-           @param method_code       Code with which method(s) should be mocked
-           @throws "INVALID-ARGUMENT" in case the method(s) is already mocked.
-
-           Note: In case an exception is raised, no method is mocked.
-         */
+        /** @param method_names      One or more method names that should be mocked
+          * @param method_code       Code with which method(s) should be mocked
+          * @throws "INVALID-ARGUMENT" in case the method(s) is already mocked.
+          *
+          * Note: In case an exception is raised, no method is mocked.
+          * Note: You can use asterisk (*) to mock all methods that will be called.
+          */
         public nothing _mock(softlist<string> method_names, code method_code) {
             foreach string method_name in (method_names) {
                 if (exists self.mocked_methods{method_name}) {
@@ -192,17 +267,32 @@ public namespace QMock {
             }
         }
 
-        #! TODO doc
+        #! Mocks @p method_names method(s) and returns the QMockProxy for further settings.
+        /** @param method_names      One or more method names that should be mocked
+          * @returns QMockProxy for further settings.
+          * @throws "INVALID-ARGUMENT" in case the method(s) is already mocked with code
+          *         (@see QMock::_mock(softlist<string>, code))
+          *
+          * Note: In case an exception is raised, no method is mocked.
+          * Note: If the method is already mocked via code (@see QMock::_mock(softlist<string>, code))
+          *       an exception is raised (it is not possible to combine these options).
+          * Note: If the method is already mocked via QMockProxy, then new QMockProxy is added into the chain
+          *       of evaluations and will be evaluated as logical "or" in the order of QMock::_mock method was called.
+          * Note: You can use asterisk (*) to mock all methods that will be called.
+          */
         public QMockProxy _mock(softlist<string> method_names) {
             auto obj = new QMockProxy();
             foreach string method_name in (method_names) {
                 if (exists self.mocked_methods{method_name}) {
-                    auto mth = self.mocked_methods{method_name};
-                    if (mth instanceof QMockProxy) {
-                        mth.addEvaluation(obj);
-                    } else {
+                    if (!(self.mocked_methods{method_name} instanceof QMockProxy)) {
                         throw "INVALID-ARGUMENT", sprintf("Method %n is already mocked", method_name);
                     }
+                }
+            }
+
+            foreach string method_name in (method_names) {
+                if (exists self.mocked_methods{method_name}) {
+                    self.mocked_methods{method_name}.addEvaluation(obj);
                 } else {
                     self.mocked_methods{method_name} = obj;
                 }
@@ -210,17 +300,27 @@ public namespace QMock {
             return obj;
         }
 
-        #! TODO doc
+        #! Tests whether the method @method_name was called.
+        /** @param method_name      name of the mocked method
+          * @returns int    the amount of method calls
+          */
         public int _assert_called(string method_name) {
             return elements select self._mock_calls, $1 === method_name;
         }
 
-        #! TODO doc
+        #! Tests whether the method @method_name was called exactly once.
+        /** @param method_name      name of the mocked method
+          * @returns bool    True, if the method was called once; False, otherwise.
+          */
         public bool _assert_called_once(string method_name) {
             return 1 === self._assert_called(method_name);
         }
 
-        #! TODO doc
+        #! Tests whether the method @method_name was called with exactly these arguments @args.
+        /** @param method_name      name of the mocked method
+          * @param args             the expected arguments of the mocked method call
+          * @returns int    the amount of method calls
+          */
         public int _assert_called_with_args(string method_name, list args) {
             int amount_of_calls = 0;
             foreach list called_args in (self._mock_calls_with_args{method_name}) {
@@ -229,12 +329,22 @@ public namespace QMock {
             return amount_of_calls;
         }
 
-        #! TODO doc
+        #! Tests whether the method @method_name was called exactly once with exactly these arguments @args.
+        /** @param method_name      name of the mocked method
+          * @param args             the expected arguments of the mocked method call
+          * @returns bool    True, if the method was called once; False, otherwise.
+          */
         public bool _assert_called_once_with_args(string method_name, list args) {
             return 1 === self._assert_called_with_args(method_name, args);
         }
 
-        #! TODO doc
+        #! Evaluates the mocked method.
+        /** This method is called when no method of @method_name name is defined within the class.
+          * That means this method is called for the mocked methods.
+          * @param method_name      name of the method called
+          *
+          * Note: The method is synchronized to prevent multi thread problems.
+          */
         synchronized public auto methodGate(string method_name) {
 
             # look for mocked code
@@ -253,20 +363,23 @@ public namespace QMock {
             }
             push _mock_calls_with_args{method_name}, argv;
 
-            # not mocked
+            # not mocked and !Qmock::STRICT
             if (mth === NOTHING) {
                 return NOTHING;
             }
 
-            # call mocked code
+            # evaluate QMockProxy if it's mocked via it
             if (mth instanceof QMockProxy) {
                 try {
                     return mth.eval(argv);
                 } catch (ex) {
                     switch (ex.err) {
                         case "QMOCK-PROXY-EVAL-FAIL":
+                            # evaluation of QMockProxy fail
                             if (self.settings.is_strict === QMock::STRICT) {
-                                throw "INVALID-ARGUMENT", sprintf("Mocked method %n evaluation failed", method_name);
+                                throw "INVALID-ARGUMENT",
+                                      sprintf("Mocked method %n evaluation failed", method_name),
+                                      argv;
                             }
                             return NOTHING;
                         default:
@@ -275,6 +388,7 @@ public namespace QMock {
                 }
             }
 
+            # call the mock code if it's mocked via it
             return call_function_args(mth, argv);
         }
     }
