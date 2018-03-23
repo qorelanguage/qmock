@@ -228,6 +228,8 @@ public namespace QMock {
             return self;
         }
 
+        # -----------------------
+
         #! Stores the provided @p return_value and returns it when QMockProxy::eval is called.
         /** @param return_value     the value that will be returned when evaluating
           * @returns NOTHING this is effectively the last call of the chain
@@ -431,6 +433,10 @@ public namespace QMock {
         /** This method is called when no method of @method_name name is defined within the class.
           * That means this method is called for the mocked methods.
           * @param method_name      name of the method called
+          * @returns whatever the mocked method returns
+          * @throws "INVALID-ARGUMENT" in case is_strict === STRICT and the method was not mocked
+          *         or the evaluation failed.
+          * @throws whatever the mocked method throws
           *
           * Note: The method is synchronized to prevent multi thread problems.
           */
