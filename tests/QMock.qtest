@@ -63,8 +63,6 @@ class QMockTest inherits QUnit::Test {
         addTestCase("QMockProxy: mixing return_value, exec_code and throw exception",
                     \testQMockProxyMixingReturnValueExecCodeThrowException());
 
-        addTestCase("QMockProxy: match second rule, skip the first", \testQMockProxyMatchSecond());
-
         # rules
         addTestCase("QMockProxy: argsCountEq", \testQMockProxyArgCountEq());
 
@@ -207,10 +205,6 @@ class QMockTest inherits QUnit::Test {
             assertThrows("INVALID-ARGUMENT", "^Exec code was already set$",
                          sub() { proxy.execCode(sub(){}); });
         }
-    }
-
-    testQMockProxyMatchSecond() {
-        # TODO
     }
 
     # -------------------- rules ---
@@ -467,12 +461,12 @@ class QMockTest inherits QUnit::Test {
         auto qmock = new QMock();
 
         # mock the same method with different condition
-        qmock._mock("foo").argEq(0, 1).returnValue(3);
-        qmock._mock("foo").argEq(0, 2).returnValue(5);
+        qmock._mock("foo").argEq(0, 0).argEq(1, 1).returnValue(3);
+        qmock._mock("foo").argEq(0, 0).argEq(1, 2).returnValue(5);
 
         # assert the calls return proper value based on the argument
-        assertEq(3, qmock.foo(1));
-        assertEq(5, qmock.foo(2));
+        assertEq(3, qmock.foo(0, 1));
+        assertEq(5, qmock.foo(0, 2));
     }
 
     testQMockMockMultipleMethodsWithQMockProxyAndCode() {
