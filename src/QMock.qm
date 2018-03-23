@@ -119,6 +119,17 @@ public namespace QMock {
 
         # -------------- rules ------
 
+        #! Adds new rule; Amount of arguments must equal the expected value.
+        /** @param expected_count    amount of expected arguments
+          * @returns QMockProxy     self, to allow chaining calls
+          */
+        public QMockProxy argsCountEq(int expected_count) {
+            push self.rules, bool sub(*list argv) {
+                return expected_count === argv.size();
+            };
+            return self;
+        }
+
         #! Adds new rule; All arguments must equal (===) the expected ones.
         /** @param expected_argv    list (or NOTHING) of expected arguments
           * @returns QMockProxy     self, to allow chaining calls

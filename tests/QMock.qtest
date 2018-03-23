@@ -66,6 +66,8 @@ class QMockTest inherits QUnit::Test {
         addTestCase("QMockProxy: match second rule, skip the first", \testQMockProxyMatchSecond());
 
         # rules
+        addTestCase("QMockProxy: argsCountEq", \testQMockProxyArgCountEq());
+
         addTestCase("QMockProxy: argEq with number < 0", \testQMockProxyArgEqInvalidArgNo());
         addTestCase("QMockProxy: argEq value", \testQMockProxyArgEqValue());
         addTestCase("QMockProxy: argEq NOTHING", \testQMockProxyArgEqNothing());
@@ -212,6 +214,28 @@ class QMockTest inherits QUnit::Test {
     }
 
     # -------------------- rules ---
+
+    testQMockProxyArgCountEq() {
+        {
+            auto proxy = new QMockProxy();
+            proxy.argsCountEq(0);
+
+            proxy.eval(); # does not throw
+            proxy.eval(NOTHING); # does not throw
+            proxy.eval(list()); # does not throw
+            assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((1,)); });
+            assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((1,2)); });
+        }
+        {
+            auto proxy = new QMockProxy();
+            proxy.argsCountEq(1);
+
+            proxy.eval((1,)); # does not throw
+            assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(); });
+            assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(NOTHING); });
+            assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((1,2)); });
+        }
+    }
 
     testQMockProxyArgEqInvalidArgNo() {
         auto proxy = new QMockProxy();
