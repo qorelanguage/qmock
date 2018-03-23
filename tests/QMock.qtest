@@ -59,13 +59,34 @@ class QMockTest inherits QUnit::Test {
         addTestCase("QMockProxy: return value as a code", \testQMockProxyReturnValueCode());
         addTestCase("QMockProxy: exec code", \testQMockProxyExecCode());
         addTestCase("QMockProxy: throws", \testQMockProxyThrows());
+        addTestCase("QMockProxy: throws when mock method expects args", \testQMockProxyThrowsMockedWithArgs());
         addTestCase("QMockProxy: mixing return_value, exec_code and throw exception",
                     \testQMockProxyMixingReturnValueExecCodeThrowException());
+
         addTestCase("QMockProxy: match second rule, skip the first", \testQMockProxyMatchSecond());
-        addTestCase("QMockProxy: argsEq with list", \testQMockProxyArgsEqWithList());
-        addTestCase("QMockProxy: argsEq with empty list", \testQMockProxyArgsEqWithEmptyList());
-        addTestCase("QMockProxy: argsEq with NOTHING", \testQMockProxyArgsEqWithNothing());
-        addTestCase("QMockProxy: throws when mock method expects args", \testQMockProxyThrowsMockedWithArgs());
+
+        # rules
+        addTestCase("QMockProxy: argEq with number < 0", \testQMockProxyArgEqInvalidArgNo());
+        addTestCase("QMockProxy: argEq value", \testQMockProxyArgEqValue());
+        addTestCase("QMockProxy: argEq NOTHING", \testQMockProxyArgEqNothing());
+
+        addTestCase("QMockProxy: argEqSoft with number < 0", \testQMockProxyArgEqSoftInvalidArgNo());
+        addTestCase("QMockProxy: argEqSoft value", \testQMockProxyArgEqSoftValue());
+        addTestCase("QMockProxy: argEqSoft NOTHING", \testQMockProxyArgEqSoftNothing());
+
+        addTestCase("QMockProxy: argsEq list", \testQMockProxyArgsEqList());
+        addTestCase("QMockProxy: argsEq empty list", \testQMockProxyArgsEqEmptyList());
+        addTestCase("QMockProxy: argsEq NOTHING", \testQMockProxyArgsEqNothing());
+
+        addTestCase("QMockProxy: argsEqSoft list", \testQMockProxyArgsEqSoftList());
+        addTestCase("QMockProxy: argsEqSoft empty list", \testQMockProxyArgsEqSoftEmptyList());
+        addTestCase("QMockProxy: argsEqSoft NOTHING", \testQMockProxyArgsEqSoftNothing());
+
+        addTestCase("QMockProxy: argRegex with number < 0", \testQMockProxyArgRegexInvalidArgNo());
+        addTestCase("QMockProxy: argRegex", \testQMockProxyArgRegex());
+
+        addTestCase("QMockProxy: argRegexSoft with number < 0", \testQMockProxyArgRegexSoftInvalidArgNo());
+        addTestCase("QMockProxy: argRegexSoft", \testQMockProxyArgRegexSoft());
 
         set_return_value(main());
     }
@@ -147,6 +168,18 @@ class QMockTest inherits QUnit::Test {
         assertThrows("EXC", "^DESC$", sub() { proxy.eval(); }, NOTHING, "eval throws exception");
     }
 
+    testQMockProxyThrowsMockedWithArgs() {
+        auto proxy = new QMockProxy();
+
+        # mock to throw
+        proxy.throwException("EXC");
+
+        # evaluate without arguments
+        assertThrows("EXC", NOTHING, sub() { proxy.eval(); });
+        # evaluate with arguments
+        assertThrows("EXC", NOTHING, sub() { proxy.eval((1,2)); });
+    }
+
     testQMockProxyMixingReturnValueExecCodeThrowException() {
         {
             auto proxy = new QMockProxy();
@@ -178,7 +211,87 @@ class QMockTest inherits QUnit::Test {
         # TODO
     }
 
-    testQMockProxyArgsEqWithList() {
+    # -------------------- rules ---
+
+    testQMockProxyArgEqInvalidArgNo() {
+        auto proxy = new QMockProxy();
+        assertThrows("INVALID-ARGUMENT", "^Argument number must be >= 0 but received -1$",
+                     sub() { proxy.argEq(-1, False); });
+    }
+
+    testQMockProxyArgEqValue() {
+        # different value types
+        foreach auto value in (int(1), list(1,2), hash({"a": 2}), sub(){}, "string", True) {
+            auto proxy = new QMockProxy();
+            proxy.argEq(0, value);
+            proxy.eval((value,)); # does not throw
+        }
+
+        auto proxy = new QMockProxy();
+        proxy.argEq(0, "1");
+        proxy.eval(("1", "no matter of second arg", False));
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((True,)); }); # ===
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((1,)); }); # ===
+    }
+
+
+    testQMockProxyArgEqNothing() {
+        auto proxy = new QMockProxy();
+        proxy.argEq(1, NOTHING).returnValue("works");
+        assertEq("works", proxy.eval((True, NOTHING))); # second arg is NOTHING
+        assertEq("works", proxy.eval((True, NOTHING, False))); # second arg is NOTHING
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING,
+                     sub() { proxy.eval((False, )); }); # second arg is not set
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING,
+                     sub() { proxy.eval((False, False)); }); # second arg is !== NOTHING
+    }
+
+    testQMockProxyArgEqSoftInvalidArgNo() {
+        auto proxy = new QMockProxy();
+        assertThrows("INVALID-ARGUMENT", "^Argument number must be >= 0 but received -1$",
+                     sub() { proxy.argEqSoft(-1, False); });
+    }
+
+    testQMockProxyArgEqSoftValue() {
+        # different value types
+        list test_cases = (
+            {"value": 1,
+             "eq": (1, "1", True,),
+             "notEq": (2, "2", False, NOTHING),},
+            {"value": False,
+             "eq": (0, NULL, NOTHING, "0"), # note: "0" == False
+             "notEq": (2, "2", True, ""),}, # note: ""  != False
+        );
+
+        foreach hash test_case in (test_cases) {
+            auto proxy = new QMockProxy();
+            proxy.argEqSoft(0, test_case.value);
+            foreach auto value in (test_case.eq) {
+                proxy.eval((value,)); # does not throw
+            }
+            foreach auto value in (test_case.notEq) {
+                assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((value,)); });
+            }
+        }
+
+        auto proxy = new QMockProxy();
+        proxy.argEqSoft(0, "1");
+        proxy.eval((1, "no matter of second arg", False));
+    }
+
+    testQMockProxyArgEqSoftNothing() {
+        auto proxy = new QMockProxy();
+        proxy.argEqSoft(1, NOTHING).returnValue("works");
+        assertEq("works", proxy.eval((True, NOTHING))); # second arg is NOTHING
+        assertEq("works", proxy.eval((True, NOTHING, False))); # second arg is NOTHING
+        assertEq("works", proxy.eval((True, ""))); # second arg eq == NOTHING
+        assertEq("works", proxy.eval((True, False))); # second arg eq == NOTHING
+        assertEq("works", proxy.eval((True, 0))); # second arg eq == NOTHING
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING,
+                     sub() { proxy.eval((False, )); }); # second arg is not set
+    }
+
+    testQMockProxyArgsEqList() {
         auto proxy = new QMockProxy();
 
         proxy.argsEq((1,2,3)).returnValue("works");
@@ -191,7 +304,7 @@ class QMockTest inherits QUnit::Test {
         assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((1, 2, 3, 4)); });
     }
 
-    testQMockProxyArgsEqWithEmptyList() {
+    testQMockProxyArgsEqEmptyList() {
         auto proxy = new QMockProxy();
 
         proxy.argsEq(()).returnValue("works");
@@ -203,7 +316,7 @@ class QMockTest inherits QUnit::Test {
         assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((1, 2, 3, 4)); });
     }
 
-    testQMockProxyArgsEqWithNothing() {
+    testQMockProxyArgsEqNothing() {
         auto proxy = new QMockProxy();
 
         proxy.argsEq().returnValue("works");
@@ -216,16 +329,74 @@ class QMockTest inherits QUnit::Test {
         assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(("1", "2", "3")); });
     }
 
-    testQMockProxyThrowsMockedWithArgs() {
+    testQMockProxyArgsEqSoftList() {
         auto proxy = new QMockProxy();
 
-        # mock to throw
-        proxy.throwException("EXC");
+        proxy.argsEqSoft((1,2,3)).returnValue("works");
 
-        # evaluate without arguments
-        assertThrows("EXC", NOTHING, sub() { proxy.eval(); });
-        # evaluate with arguments
-        assertThrows("EXC", NOTHING, sub() { proxy.eval((1,2)); });
+        # asserts
+        assertEq("works", proxy.eval((1,2,3)));
+        assertEq("works", proxy.eval(("1","2","3"))); # ==
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(); });   # NOTHING
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(()); }); # empty list
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((1, 2, 3, 4)); });
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((1, 2, "2")); });
+    }
+
+    testQMockProxyArgsEqSoftEmptyList() {
+        auto proxy = new QMockProxy();
+
+        proxy.argsEqSoft(()).returnValue("works");
+
+        # asserts
+        assertEq("works", proxy.eval(()));
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(); });  # NOTHING is not empty list
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(("1", "2", "3")); });
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((1, 2, 3, 4)); });
+    }
+
+    testQMockProxyArgsEqSoftNothing() {
+        auto proxy = new QMockProxy();
+
+        proxy.argsEqSoft().returnValue("works");
+
+        # asserts
+        assertEq("works", proxy.eval());
+        assertEq("works", proxy.eval(NOTHING));
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(()); });  # empty list is not NOTHING
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((1, 2, 3)); });
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(("1", "2", "3")); });
+    }
+
+    testQMockProxyArgRegexInvalidArgNo() {
+        auto proxy = new QMockProxy();
+        assertThrows("INVALID-ARGUMENT", "^Argument number must be >= 0 but received -1$",
+                     sub() { proxy.argRegex(-1, ""); });
+    }
+
+    testQMockProxyArgRegex() {
+        auto proxy = new QMockProxy();
+
+        proxy.argRegex(0, "^[0-9]+$");
+        proxy.eval(("0",)); # does not throw
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(("x",)); });
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval((1,)); }); # not a string
+    }
+
+    testQMockProxyArgRegexSoftInvalidArgNo() {
+        auto proxy = new QMockProxy();
+        assertThrows("INVALID-ARGUMENT", "^Argument number must be >= 0 but received -1$",
+                     sub() { proxy.argRegexSoft(-1, ""); });
+    }
+
+    testQMockProxyArgRegexSoft() {
+        auto proxy = new QMockProxy();
+
+        proxy.argRegexSoft(0, "^[0-9]+$");
+        proxy.eval(("0",)); # does not throw
+        proxy.eval((0,)); # does not throw - softstring conversion
+        proxy.eval((101,)); # does not throw - softstring conversion
+        assertThrows("QMOCK-PROXY-EVAL-FAIL", NOTHING, sub() { proxy.eval(("x",)); });
     }
 
     # ----------------

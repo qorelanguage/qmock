@@ -114,12 +114,12 @@ public namespace QMock {
             }
 
             # if none of the QMockProxies from the chain comply, throw exception
-            throw "QMOCK-PROXY-EVAL-FAIL";
+            throw "QMOCK-PROXY-EVAL-FAIL", NOTHING, argv;
         }
 
         # -------------- rules ------
 
-        #! Adds new rule that all arguments must equal the expected ones.
+        #! Adds new rule; All arguments must equal (===) the expected ones.
         /** @param expected_argv    list (or NOTHING) of expected arguments
           * @returns QMockProxy     self, to allow chaining calls
           */
@@ -130,14 +130,29 @@ public namespace QMock {
             return self;
         }
 
-        #! Adds new rule that specific argument on position @p arg_no must equal (===) the expected value.
+        #! Adds new rule; All arguments must soft equal (==) the expected ones.
+        /** @param expected_argv    list (or NOTHING) of expected arguments
+          * @returns QMockProxy     self, to allow chaining calls
+          */
+        public QMockProxy argsEqSoft(*list expected_argv) {
+            push self.rules, bool sub(*list argv) {
+                return expected_argv == argv;
+            };
+            return self;
+        }
+
+        #! Adds new rule; Specific argument on position @p arg_no must equal (===) the expected value.
         /** @param arg_no    index of the parameter to be tested (indexed from 0)
           * @param expected  any expected value of the parameter
           * @returns QMockProxy     self, to allow chaining calls
+          * @throws "INVALID-ARGUMENT" when argument number is < 0
           */
         public QMockProxy argEq(int arg_no, auto expected) {
+            if (arg_no < 0) {
+                throw "INVALID-ARGUMENT", sprintf("Argument number must be >= 0 but received %y", arg_no);
+            }
             push self.rules, bool sub(*list argv) {
-                if (!exists argv[arg_no]) {
+                if (arg_no >= argv.size()) {
                     return False;
                 }
                 return argv[arg_no] === expected;
@@ -145,18 +160,70 @@ public namespace QMock {
             return self;
         }
 
-        #! Adds new rule that specific argument on position @p arg_no must match the regular expression.
+        #! Adds new rule; Specific argument on position @p arg_no must soft equal (==) the expected value.
+        /** @param arg_no    index of the parameter to be tested (indexed from 0)
+          * @param expected  any expected value of the parameter
+          * @returns QMockProxy     self, to allow chaining calls
+          * @throws "INVALID-ARGUMENT" when argument number is < 0
+          */
+        public QMockProxy argEqSoft(int arg_no, auto expected) {
+            if (arg_no < 0) {
+                throw "INVALID-ARGUMENT", sprintf("Argument number must be >= 0 but received %y", arg_no);
+            }
+            push self.rules, bool sub(*list argv) {
+                if (arg_no >= argv.size()) {
+                    return False;
+                }
+                return argv[arg_no] == expected;
+            };
+            return self;
+        }
+
+        #! Adds new rule; Specific argument on position @p arg_no must match the regular expression.
         /** @param arg_no    index of the parameter to be tested (indexed from 0)
           * @param pattern   regular expression pattern
           * @param options   regular expression options
           * @returns QMockProxy     self, to allow chaining calls
+          * @throws "INVALID-ARGUMENT" when argument number is < 0
+          *
+          * Note: argument on position @p arg_no must be the type of string.
           */
         public QMockProxy argRegex(int arg_no, string pattern, int options = 0) {
+            if (arg_no < 0) {
+                throw "INVALID-ARGUMENT", sprintf("Argument number must be >= 0 but received %y", arg_no);
+            }
             push self.rules, bool sub(*list argv) {
-                if (!exists argv[arg_no]) {
+                if (arg_no >= argv.size()) {
                     return False;
                 }
-                return argv[arg_no].regex(pattern, options);
+                auto arg = argv[arg_no];
+                if (arg instanceof string) {
+                    return arg.regex(pattern, options);
+                }
+                return False;
+            };
+            return self;
+        }
+
+        #! Adds new rule; Specific argument on position @p arg_no must match the regular expression.
+        /** @param arg_no    index of the parameter to be tested (indexed from 0)
+          * @param pattern   regular expression pattern
+          * @param options   regular expression options
+          * @returns QMockProxy     self, to allow chaining calls
+          * @throws "INVALID-ARGUMENT" when argument number is < 0
+          *
+          * Note: argument on position @p arg_no will be converted to the type of string (via softstring).
+          */
+        public QMockProxy argRegexSoft(int arg_no, string pattern, int options = 0) {
+            if (arg_no < 0) {
+                throw "INVALID-ARGUMENT", sprintf("Argument number must be >= 0 but received %y", arg_no);
+            }
+            push self.rules, bool sub(*list argv) {
+                if (arg_no >= argv.size()) {
+                    return False;
+                }
+                softstring arg = argv[arg_no];
+                return arg.regex(pattern, options);
             };
             return self;
         }
