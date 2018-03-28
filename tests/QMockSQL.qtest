@@ -21,6 +21,7 @@ class QMockSQLTest inherits QUnit::Test {
     constructor() : QUnit::Test("QMockSQLTest", "1.0") {
         # DatasourceMock
         addTestCase("DatasourceMock: test inherits AbstractDatasource", \test_DatasourceMockinheritsAbstractDatasource());
+        addTestCase("DatasourceMock: test mock select row with args", \test_DatasourceMockSelectRowWithArgs());
 
         set_return_value(main());
     }
@@ -29,5 +30,20 @@ class QMockSQLTest inherits QUnit::Test {
         auto ds = new DatasourceMock();
         assertTrue(ds instanceof ::QMock::SQL::DatasourceMock);
         assertTrue(ds instanceof ::Qore::SQL::AbstractDatasource);
+    }
+
+    test_DatasourceMockSelectRowWithArgs() {
+        auto ds = new DatasourceMock();
+        ds._mock("selectRow")
+            .argRegex(0, "-- query: [0-9]+")
+            .argsCountEq(2)
+            .execCode(auto sub(string sql, auto arg) { return arg; });
+
+        auto result = ds.selectRow("
+            SELECT *
+            FROM dual -- query: 1
+        ", 15);
+
+        assertEq(15, result);
     }
 }

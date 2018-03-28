@@ -50,32 +50,38 @@ public namespace SQL {
 
     #! TODO doc
     public class DatasourceMock inherits QMock, Qore::SQL::AbstractDatasource {
-        *string getPassword() { return QMock::methodGate("getPassword"); }
-        *string getOSEncoding() { return QMock::methodGate("getOSEncoding"); }
-        *string getDBName() { return QMock::methodGate("getDBName"); }
-        any selectRows(string sql) { return QMock::methodGate("selectRows", sql); }
-        bool inTransaction() {  return QMock::methodGate("inTransaction"); }
-        any getClientVersion() { return QMock::methodGate("getClientVersion"); }
-        any exec(string sql) { return QMock::methodGate("exec", sql); }
-        *int getPort() { return QMock::methodGate("getPort"); }
-        any execRaw(string sql) { return QMock::methodGate("execRaw", sql); }
-        any getServerVersion() { return QMock::methodGate("getServerVersion"); }
-        *string getHostName() { return QMock::methodGate("getHostName"); }
-        string getDriverName() { return QMock::methodGate("getDriverName"); }
-        any select(string sql) { return QMock::methodGate("select", sql); }
-        string getDBEncoding() { return QMock::methodGate("getDBEncoding"); }
-        any vselect(string sql, *softlist vargs) { return QMock::methodGate("vselect", sql, vargs); }
-        string getConfigString() { return QMock::methodGate("getConfigString"); }
-        any vselectRows(string sql, *softlist vargs) { return QMock::methodGate("vselectRows", sql, vargs); }
-        nothing beginTransaction() { QMock::methodGate("beginTransaction"); }
-        nothing rollback() { QMock::methodGate("rollback"); }
-        any selectRow(string sql) { return QMock::methodGate("selectRow", sql); }
-        hash getConfigHash() { return QMock::methodGate("getConfigHash"); }
-        nothing commit() { QMock::methodGate("commit"); }
-        any vselectRow(string sql, *softlist vargs) { return QMock::methodGate("vselectRow", sql, vargs); }
-        any vexec(string sql, *softlist vargs) { return QMock::methodGate("vexec", sql, vargs); }
-        *string getUserName() { return QMock::methodGate("getUserName"); }
-        SQLStatement getSQLStatement() { return QMock::methodGate("getSQLStatement"); }
+
+        private auto call_mock(*list argv) {
+            string func_name = replace(get_thread_call_stack()[2].function, "DatasourceMock::", "");
+            return call_function_args(\QMock::methodGate(), (func_name,) + argv);
+        }
+
+        *string getPassword()                        { return call_mock(argv); }
+        *string getOSEncoding()                      { return call_mock(argv); }
+        *string getDBName()                          { return call_mock(argv); }
+        any selectRows(string sql)                   { return call_mock((sql, ) + argv); }
+        bool inTransaction()                         { return call_mock(argv); }
+        any getClientVersion()                       { return call_mock(argv); }
+        any exec(string sql)                         { return call_mock((sql, ) + argv); }
+        *int getPort()                               { return call_mock(argv); }
+        any execRaw(string sql)                      { return call_mock((sql, ) + argv); }
+        any getServerVersion()                       { return call_mock(argv); }
+        *string getHostName()                        { return call_mock(argv); }
+        string getDriverName()                       { return call_mock(argv); }
+        any select(string sql)                       { return call_mock((sql, ) + argv); }
+        string getDBEncoding()                       { return call_mock(argv); }
+        any vselect(string sql, *softlist vargs)     { return call_mock((sql, vargs) + argv); }
+        string getConfigString()                     { return call_mock(argv); }
+        any vselectRows(string sql, *softlist vargs) { return call_mock((sql, vargs) + argv); }
+        nothing beginTransaction()                   { call_mock(argv); }
+        nothing rollback()                           { call_mock(argv); }
+        any selectRow(string sql)                    { return call_mock((sql, ) + argv); }
+        hash getConfigHash()                         { return call_mock(argv); }
+        nothing commit()                             { call_mock(argv); }
+        any vselectRow(string sql, *softlist vargs)  { return call_mock((sql, vargs) + argv); }
+        any vexec(string sql, *softlist vargs)       { return call_mock((sql, vargs) + argv); }
+        *string getUserName()                        { return call_mock(argv); }
+        SQLStatement getSQLStatement()               { return call_mock(argv); }
     }
 
 } # namespace
