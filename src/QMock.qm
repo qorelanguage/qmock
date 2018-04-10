@@ -51,7 +51,7 @@ public namespace QMock {
             list<code> rules;           # list of rules for evaluating (rule code must return boolean)
             auto return_value;          # the value to return
             *code exec_code;            # the code to execute
-            list<QMockProxy> others;    # chain of other QMockProxies to evaluate
+            *QMockProxy next;           # chain of other QMockProxies to evaluate
         }
 
     #public methods
@@ -62,14 +62,17 @@ public namespace QMock {
             self.rules = new list<code>();
             self.return_value = NOTHING;
             self.exec_code = NOTHING;
-            self.others = new list<QMockProxy>();
+            self.next = NOTHING;
         }
 
         #! Adds new QMockProxy to the chain for future evaluation.
         /** @param obj    new QMockProxy that will be added into the chain
           */
         public nothing addEvaluation(QMockProxy obj) {
-            push self.others, obj;
+            if (next !== NOTHING) {
+                throw "INVALID-ARGUMENT", "Next proxy in evaluation chain is already set";
+            }
+            next = obj;
         }
 
         #! Evaluates the QMockProxy.
@@ -99,18 +102,8 @@ public namespace QMock {
             }
 
             # if rules didn't comply, try to evaluate next QMockProxy from the chain
-            foreach QMockProxy obj in (self.others) {
-                try {
-                    return obj.eval(argv);
-                } catch (ex) {
-                    switch (ex.err) {
-                        case "QMOCK-PROXY-EVAL-FAIL":
-                            # ignore, try next one
-                        break;
-                        default:
-                            rethrow;
-                    }
-                }
+            if (self.next) {
+                return self.next.eval(argv);
             }
 
             # if none of the QMockProxies from the chain comply, throw exception
@@ -383,7 +376,6 @@ public namespace QMock {
           * Note: You can use asterisk (*) to mock all methods that will be called.
           */
         public QMockProxy _mock(softlist<string> method_names) {
-            auto obj = new QMockProxy();
             foreach string method_name in (method_names) {
                 if (exists self.mocked_methods{method_name}) {
                     if (!(self.mocked_methods{method_name} instanceof QMockProxy)) {
@@ -392,12 +384,12 @@ public namespace QMock {
                 }
             }
 
+            auto obj = new QMockProxy();
             foreach string method_name in (method_names) {
                 if (exists self.mocked_methods{method_name}) {
-                    self.mocked_methods{method_name}.addEvaluation(obj);
-                } else {
-                    self.mocked_methods{method_name} = obj;
+                    obj.addEvaluation(self.mocked_methods{method_name});
                 }
+                self.mocked_methods{method_name} = obj;
             }
             return obj;
         }

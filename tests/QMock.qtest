@@ -55,6 +55,7 @@ class QMockTest inherits QUnit::Test {
         # QMockProxy tests
         addTestCase("QMockProxy: constructor", \testQMockProxyCtor());
         addTestCase("QMockProxy: addEvaluation", \testQMockProxyAddEvaluation());
+        addTestCase("QMockProxy: addEvaluation throws if already set", \testQMockProxyAddEvaluationThrows());
         addTestCase("QMockProxy: return value", \testQMockProxyReturnValue());
         addTestCase("QMockProxy: return value as a code", \testQMockProxyReturnValueCode());
         addTestCase("QMockProxy: exec code", \testQMockProxyExecCode());
@@ -62,6 +63,7 @@ class QMockTest inherits QUnit::Test {
         addTestCase("QMockProxy: throws when mock method expects args", \testQMockProxyThrowsMockedWithArgs());
         addTestCase("QMockProxy: mixing return_value, exec_code and throw exception",
                     \testQMockProxyMixingReturnValueExecCodeThrowException());
+        addTestCase("QMockProxy: order of evaluation", \testQMockProxyEvaluationOrder());
 
         # rules
         addTestCase("QMockProxy: argsCountEq", \testQMockProxyArgCountEq());
@@ -97,18 +99,31 @@ class QMockTest inherits QUnit::Test {
         # default settings
         assertEq((), QMockProxyAccessor::get(proxy, "rules"), "default rules");
         assertEq(NOTHING, QMockProxyAccessor::get(proxy, "return_value"), "default return_value");
-        assertEq((), QMockProxyAccessor::get(proxy, "others"), "default other proxies");
+        assertEq(NOTHING, QMockProxyAccessor::get(proxy, "next"), "default next proxy is NOTHING");
     }
 
     testQMockProxyAddEvaluation() {
         auto proxy = new QMockProxy();
-        assertEq(new list<QMockProxy>(), QMockProxyAccessor::get(proxy, "others"), "default other proxies");
+        assertEq(NOTHING, QMockProxyAccessor::get(proxy, "next"), "default next proxy");
 
         # add other proxy
         auto proxy2 = new QMockProxy();
+        assertEq(NOTHING, QMockProxyAccessor::get(proxy2, "next"), "default next proxy");
+
+        # act
         proxy.addEvaluation(proxy2);
 
-        assertEq((proxy2, ), QMockProxyAccessor::get(proxy, "others"), "added another proxies");
+        assertEq(proxy2, QMockProxyAccessor::get(proxy, "next"), "proxy.next is proxy2");
+        assertEq(NOTHING, QMockProxyAccessor::get(proxy2, "next"), "proxy2.next is NOTHING");
+    }
+
+    testQMockProxyAddEvaluationThrows() {
+        auto proxy = new QMockProxy();
+        auto proxy2 = new QMockProxy();
+        proxy.addEvaluation(proxy2);
+
+        assertThrows("INVALID-ARGUMENT", "^Next proxy in evaluation chain is already set$",
+                     sub() { proxy.addEvaluation(proxy2); });
     }
 
     testQMockProxyReturnValue() {
@@ -205,6 +220,18 @@ class QMockTest inherits QUnit::Test {
             assertThrows("INVALID-ARGUMENT", "^Exec code was already set$",
                          sub() { proxy.execCode(sub(){}); });
         }
+    }
+
+    testQMockProxyEvaluationOrder() {
+        auto qmock = new QMock();
+
+        qmock._mock("foo").returnValue(1);
+        qmock._mock("foo").returnValue(2);
+
+        # eval
+        auto ret = qmock.foo();
+
+        assertEq(2, ret);
     }
 
     # -------------------- rules ---
