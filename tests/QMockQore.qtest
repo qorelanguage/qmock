@@ -27,5 +27,8 @@ class QMockQoreTest inherits QUnit::Test {
     test_HTTPClient() {
         auto client = new HTTPClient();
         assertTrue(client instanceof ::QMock::QMock);
+        client._mock("post");
+        client.post();
+        assertTrue(client._assertCalledOnce("post"));
     }
 }
