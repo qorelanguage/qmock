@@ -12,16 +12,16 @@
 %requires QUnit
 
 %append-module-path ../src
-%requires QMockSQL
+%requires QMockQoreSQL
 
-%exec-class QMockSQLTest
+%exec-class QMockQoreSQLTest
 
-class QMockSQLTest inherits QUnit::Test {
+class QMockQoreSQLTest inherits QUnit::Test {
 
-    constructor() : QUnit::Test("QMockSQLTest", "1.0") {
-        # DatasourceMock
+    constructor() : QUnit::Test("QMockQoreSQLTest", "1.0") {
         addTestCase("DatasourceMock: test inherits AbstractDatasource", \test_DatasourceMockinheritsAbstractDatasource());
         addTestCase("DatasourceMock: test mock select row with args", \test_DatasourceMockSelectRowWithArgs());
+        addTestCase("SQLStatement", \test_SQLStatement());
 
         set_return_value(main());
     }
@@ -45,5 +45,10 @@ class QMockSQLTest inherits QUnit::Test {
         ", 15);
 
         assertEq(15, result);
+    }
+
+    test_SQLStatement() {
+        auto sqlstmt = new SQLStatement();
+        assertTrue(sqlstmt instanceof ::QMock::QMock);
     }
 }

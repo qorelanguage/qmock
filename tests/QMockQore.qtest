@@ -1,0 +1,31 @@
+#!/usr/bin/env qore
+# -*- mode: qore; indent-tabs-mode: nil -*-
+# author: Qore Technologies
+
+%new-style
+%require-types
+%strict-args
+%enable-all-warnings
+%no-child-restrictions
+%require-our
+
+%requires QUnit
+
+%append-module-path ../src
+%requires QMockQore
+
+%exec-class QMockQoreTest
+
+class QMockQoreTest inherits QUnit::Test {
+
+    constructor() : QUnit::Test("QMockQoreTest", "1.0") {
+        addTestCase("HTTPClient", \test_HTTPClient());
+
+        set_return_value(main());
+    }
+
+    test_HTTPClient() {
+        auto client = new HTTPClient();
+        assertTrue(client instanceof ::QMock::QMock);
+    }
+}

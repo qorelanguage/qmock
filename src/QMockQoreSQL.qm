@@ -1,5 +1,5 @@
 # -*- mode: qore; indent-tabs-mode: nil -*-
-/*  QMockSQL.qm Copyright 2018 - 2018 Qore Technologies, s.r.o.
+/*  QMockQoreSQL.qm Copyright 2018 - 2018 Qore Technologies, s.r.o.
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the "Software"),
@@ -28,9 +28,9 @@
 %enable-all-warnings
 %strict-args
 
-module QMockSQL {
+module QMockQoreSQL {
     version = "1.0";
-    desc = "QMockSQL is a module that extends QMock module with mocks from Qore::SQL namespace.";
+    desc = "QMockQoreSQL is a module that extends QMock module with mocks from Qore::SQL namespace.";
     author = "Qore Technologies";
     url = "https://github.com/qorelanguage/qmock";
     license = "MIT,LGPL";
@@ -42,13 +42,12 @@ module QMockSQL {
     };
 }
 
-%requires sql
 %requires(reexport) QMock
 
 public namespace QMock {
 public namespace SQL {
 
-    #! TODO doc
+    #! Datasource mock that implements AbstractDatasource interface
     public class DatasourceMock inherits QMock, Qore::SQL::AbstractDatasource {
 
         private auto call_mock(*list argv) {
@@ -86,3 +85,12 @@ public namespace SQL {
 
 } # namespace
 } # namespace
+
+# Classes defined in Qore::SQL namespace must be defined in root namespace so these are find before the original ones.
+
+#! SQLStatement mock
+public class SQLStatement inherits QMock {
+    public auto methodGate() {
+        return call_function_args(\QMock::methodGate(), argv);
+    }
+}
