@@ -1,0 +1,34 @@
+#!/usr/bin/env qore
+# -*- mode: qore; indent-tabs-mode: nil -*-
+# author: Qore Technologies
+
+%new-style
+%require-types
+%strict-args
+%enable-all-warnings
+%no-child-restrictions
+%require-our
+
+%requires QUnit
+
+%append-module-path ../src
+%requires QMockTableMapper
+
+%exec-class QMockTableMapperTest
+
+class QMockTableMapperTest inherits QUnit::Test {
+
+    constructor() : QUnit::Test("QMockTableMapperTest", "1.0") {
+        addTestCase("InboundTableMapper", \test_InboundTableMapper());
+
+        set_return_value(main());
+    }
+
+    test_InboundTableMapper() {
+        auto mapper = new InboundTableMapper();
+        assertTrue(mapper instanceof ::QMock::QMock);
+        mapper._mock("insertRow").returnValue({});
+        mapper.insertRow();
+        assertTrue(mapper._assertCalledOnce("insertRow"));
+    }
+}
