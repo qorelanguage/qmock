@@ -22,6 +22,7 @@
 
 # minimum required Qore version
 %requires qore >= 0.8.13
+%requires ssh2
 
 %new-style
 %require-types
@@ -44,13 +45,30 @@ module QMockQoreSSH2 {
 
 %requires(reexport) QMock
 
-# Classes defined in Qore::SSH2 namespace must be defined in root namespace so these are find before the original ones.
+public namespace QMock {
+public namespace SSH2 {
+
+    #public class SFTPClientMock inherits QMock, Qore::SSH2::SFTPClient {
+    #    private auto call_mock(*list argv) {
+    #        string func_name = replace(get_thread_call_stack()[2].function, "SFTPClientMock::", "");
+    #        return call_function_args(\QMock::methodGate(), (func_name,) + argv);
+    #    }
+#
+    #    public constructor() {
+#
+    #    }
+    #}
+} # SSH2 namespace
+} # QMock namespace
+
+# Classes defined in Qore::SSH2 namespace must be defined in root namespace so these are found before the original ones.
 
 #! SFTPClient mock
-public class SFTPClient inherits QMock {
-    public auto methodGate() {
-        return call_function_args(\QMock::methodGate(), argv);
-    }
-}
+#public class SFTPClient inherits QMock {
+#    public auto methodGate() {
+#        return call_function_args(\QMock::methodGate(), argv);
+#    }
+#}
+
 
 # TODO generate more
